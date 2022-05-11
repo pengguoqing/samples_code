@@ -30,8 +30,8 @@ extern "C"
 
 	bool got_first_keyframe;
 	bool frame_ready;
+	bool packet_reafy;
 	bool eof;
-	bool packet_pending;
 };
 
 
@@ -44,7 +44,7 @@ public:
 	~CEXFFmpegReader();
 
 	void Reset();
-	bool InitAVFmt(const std::string& filename, bool raw_data);
+	bool InitAVFmt(const std::string& filename);
 	void SetReadMode(ReadMode mode);
 	
 	int  GetVideoFrame(std::vector<uint8_t*>& framedata,  int frameindex);
@@ -77,6 +77,7 @@ private:
 	ReadMode	     m_read_mode;
 	bool			 m_exit;
     int				 m_cur_pos;
+	int				 m_seek_pos;
 	bool	         m_hasvideo;
 	bool			 m_hasaudio;
 	bool		     m_eof;
