@@ -5,7 +5,8 @@ FFmpegReader::CEXFFmpegReader::CEXFFmpegReader()
     :m_read_mode(ReadMode::kSeek),
      m_exit(false),
      m_cur_pos(0),
-     m_maxche_size(30),
+     m_seek_pos(0),
+     m_maxche_size(10),
      m_seek(false),
      m_reset(false),
      m_raw_data(false),
@@ -21,7 +22,12 @@ FFmpegReader::CEXFFmpegReader::CEXFFmpegReader()
 FFmpegReader::CEXFFmpegReader::~CEXFFmpegReader()
 {
     m_exit = true;
-    m_prepare_th.join();
+    m_vcache_condi.notify_one();
+    if (m_prepare_th.joinable())
+    {
+        m_prepare_th.join();
+    }
+    
     CloseFile();
 }
 
@@ -33,7 +39,7 @@ void FFmpegReader::CEXFFmpegReader::Reset()
     return;
 }
 
-bool FFmpegReader::CEXFFmpegReader::InitAVFmt(const std::string& filename, bool raw_data)
+bool FFmpegReader::CEXFFmpegReader::InitAVFmt(const std::string& filename)
 {
     CloseFile();
 
@@ -53,7 +59,9 @@ bool FFmpegReader::CEXFFmpegReader::InitAVFmt(const std::string& filename, bool 
     }
 
     m_hasvideo = InitDecoder(AVMEDIA_TYPE_VIDEO);
-    m_hasaudio = InitDecoder(AVMEDIA_TYPE_AUDIO);
+    InitDecoder(AVMEDIA_TYPE_AUDIO);
+    
+    ParaseMediaInfo();
 
     std::thread prepare_th(&CEXFFmpegReader::ThreadFunc, this);
     m_prepare_th = std::move(prepare_th);
@@ -80,11 +88,12 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedat
 
 		{
 			std::unique_lock<std::mutex> seek_lock(m_status_mux);
-            m_cur_pos = frameindex;
+            m_cur_pos = m_seek_pos = frameindex;
 			m_seek = true;
 		}
 
-		m_vcache_condi.wait(video_cache_lock, [this, frameindex] { return m_vframe_cache.end() != m_vframe_cache.find(frameindex); });
+		m_vcache_condi.wait(video_cache_lock, [this, frameindex, &search] { return m_vframe_cache.end() != (search = m_vframe_cache.find(frameindex)); });
+        
     } while (false);
 
     uint8_t** arr_data = search->second->data;
@@ -92,7 +101,7 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedat
     {
         framedata.push_back(*arr_data);
     }
-    m_cur_pos = frameindex;
+    
     return 0;
 }
 
@@ -192,14 +201,14 @@ void FFmpegReader::CEXFFmpegReader::ParaseMediaInfo()
 {
     m_mediainfo.width = m_vdecode.stream->codecpar->width;
     m_mediainfo.height = m_vdecode.stream->codecpar->height;
-    m_mediainfo.pixfmt = m_vdecode.stream->codecpar->format;
-    m_mediainfo.pixfmt_name = av_get_pix_fmt_name(static_cast<AVPixelFormat>(m_mediainfo.pixfmt));
+    m_mediainfo.pixfmt = m_vdecode.decoder->pix_fmt;
+    strcpy_s(m_mediainfo.pix_name, av_get_pix_fmt_name(static_cast<AVPixelFormat>(m_mediainfo.pixfmt)));
     m_mediainfo.nb_frames = m_vdecode.stream->nb_frames;
     m_mediainfo.gop_size = std::max(m_vdecode.decoder->gop_size, 1);
     if (0 == m_mediainfo.nb_frames)
     {
         int64_t duration_second = m_vdecode.stream->duration * av_q2d(m_vdecode.stream->time_base);
-        m_mediainfo.nb_frames = duration_second * av_q2d (m_vdecode.stream->avg_frame_rate);
+        m_mediainfo.nb_frames = static_cast<int64_t>(duration_second * av_q2d (m_vdecode.stream->avg_frame_rate));
     }
 
     m_mediainfo.audio_samplerate = m_adecode.stream->codecpar->sample_rate;
@@ -211,12 +220,7 @@ void FFmpegReader::CEXFFmpegReader::CloseFile()
 {
     ClearDecoderRes(&m_vdecode);
     ClearDecoderRes(&m_adecode);
-    for (auto frame = m_vframe_cache.begin(); frame != m_vframe_cache.end(); frame++)
-    {
-        av_frame_unref(frame->second);
-        av_frame_free(&frame->second);
-    }
-
+    FlushFrameCache();
     memset(&m_adecode, 0, sizeof(mp_decode));
     memset(&m_vdecode, 0, sizeof(mp_decode));
     
@@ -279,11 +283,13 @@ void FFmpegReader::CEXFFmpegReader::FlushDecoder()
 
 void FFmpegReader::CEXFFmpegReader::FlushFrameCache()
 {
-    for (auto i: m_vframe_cache)
+    for (auto frame : m_vframe_cache)
     {
-        av_frame_unref(i.second);
+        av_frame_unref(frame.second);
+        av_frame_free(&frame.second);
     }
     m_vframe_cache.clear();
+    
 }
 
 void FFmpegReader::CEXFFmpegReader::ThreadFunc()
@@ -295,7 +301,7 @@ void FFmpegReader::CEXFFmpegReader::ThreadFunc()
             if (m_seek)
             {
                 m_seek =false;
-                SeekFile(m_cur_pos);
+                SeekFile(m_seek_pos);
             }
             if (m_reset)
             {
@@ -338,10 +344,12 @@ int FFmpegReader::CEXFFmpegReader::ReadNextPacket()
 		if (m_hasvideo && read_pkt.stream_index == m_vdecode.stream->index)
 		{
             av_packet_move_ref(m_vdecode.read_pkt, &read_pkt);
+            m_vdecode.packet_reafy = true;
 		}
 		else if (m_hasaudio && read_pkt.stream_index == m_adecode.stream->index)
 		{
             av_packet_move_ref(m_adecode.read_pkt, &read_pkt);
+            m_adecode.packet_reafy = true;
 		}
 	}
     
@@ -386,6 +394,12 @@ int FFmpegReader::CEXFFmpegReader::DecodePacket()
 		return rec;
 	}
 
+    if (!m_vdecode.packet_reafy)
+    {
+        return rec;
+    }
+
+
     rec = avcodec_send_packet(m_vdecode.decoder, m_vdecode.read_pkt);
     if (rec != 0)
     {
@@ -399,7 +413,7 @@ int FFmpegReader::CEXFFmpegReader::DecodePacket()
 	}
 
     m_vdecode.frame_ready = true;
-
+    m_vdecode.packet_reafy = false;
     return 0;
 }
 
@@ -424,17 +438,24 @@ void FFmpegReader::CEXFFmpegReader::PushFrameToCache()
     AVFrame* frame = av_frame_alloc();
     av_frame_move_ref(frame, m_vdecode.decode_frame);
 
-    std::unique_lock<std::mutex> vcache_lock(m_vcache_mux);
-    m_vcache_condi.wait(vcache_lock, [this] {return m_vframe_cache.size() < m_maxche_size;});
-    m_vframe_cache.insert(pair<int, AVFrame*>(m_cur_pos++, frame));
-
+    {
+		std::unique_lock<std::mutex> vcache_lock(m_vcache_mux);
+		m_vcache_condi.wait(vcache_lock, [this] {return m_vframe_cache.size() < m_maxche_size || m_exit; });
+		m_vframe_cache.insert(pair<int, AVFrame*>(m_cur_pos++, frame));
+    }
+   
+    m_vcache_condi.notify_one();
     return;
 }
 
 FFmpegReader::FFmpegReader() :m_impl_reader(std::make_unique<CEXFFmpegReader>()) {}
 FFmpegReader::~FFmpegReader() {}
-bool FFmpegReader::InitAVFmt(const std::string& filename, bool raw_data) {return m_impl_reader->InitAVFmt(filename, raw_data);}
+bool FFmpegReader::InitAVFmt(const std::string& filename) {return m_impl_reader->InitAVFmt(filename);}
 MediaInfo FFmpegReader::GetMediaInfo() {return m_impl_reader->GetMediaInfo();}
-void FFmpegReader::SetReadMode(ReadMode mode) { m_impl_reader->SetReadMode(mode);}
+
+void FFmpegReader::SetFrameParam(PixFmt pixfmt, int width, int height)
+{
+    return;
+}
 int  FFmpegReader::ReadVideoFrame(std::vector<uint8_t*>& framedata, int frameindex) {return m_impl_reader->GetVideoFrame(framedata, frameindex);};
 void FFmpegReader::Reset() {return;}
