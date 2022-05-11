@@ -1,2 +1,2 @@
 # samples_code
-record some useful sample code
+record some usefull sample code
