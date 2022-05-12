@@ -2,21 +2,19 @@
 using namespace std;
 
 FFmpegReader::CEXFFmpegReader::CEXFFmpegReader()
-    :m_read_mode(ReadMode::kSeek),
-     m_exit(false),
+    :m_exit(false),
      m_cur_pos(0),
      m_seek_pos(0),
      m_maxche_size(10),
      m_seek(false),
      m_reset(false),
      m_raw_data(false),
-     m_hasvideo(false),
-     m_hasaudio(false),
      m_eof(false)
 {
     memset(&m_vdecode, 0, sizeof(mp_decode));
     memset(&m_adecode, 0, sizeof(mp_decode));
     memset(&m_mediainfo,    0, sizeof(media_params));
+    memset(&m_dst_frameinfo, 0, sizeof(FrameDataParam));
 }
 
 FFmpegReader::CEXFFmpegReader::~CEXFFmpegReader()
@@ -58,8 +56,8 @@ bool FFmpegReader::CEXFFmpegReader::InitAVFmt(const std::string& filename)
         return false;
     }
 
-    m_hasvideo = InitDecoder(AVMEDIA_TYPE_VIDEO);
-    InitDecoder(AVMEDIA_TYPE_AUDIO);
+    m_mediainfo.m_hasvideo = InitDecoder(AVMEDIA_TYPE_VIDEO);
+    m_mediainfo.m_hasaudio = InitDecoder(AVMEDIA_TYPE_AUDIO);
     
     ParaseMediaInfo();
 
@@ -69,9 +67,44 @@ bool FFmpegReader::CEXFFmpegReader::InitAVFmt(const std::string& filename)
     return false;
 }
 
+bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& dataparams)
+{
+    memcpy(&m_dst_frameinfo, &dataparams, sizeof(FrameDataParam));
+    m_vdecode.m_need = m_dst_frameinfo.m_type == MetaDataType::kVideo;
+    m_adecode.m_need = m_dst_frameinfo.m_type == MetaDataType::kAudio;
+
+    AVPixelFormat dst_pixfmt = GetPixfmt();
+    if ( m_mediainfo.m_width != m_dst_frameinfo.m_width
+       || m_mediainfo.m_height != m_dst_frameinfo.m_height
+       || m_mediainfo.m_pixfmt != dst_pixfmt
+       )
+    {
+        m_vdecode.m_sw_frame = av_frame_alloc();
+        m_vdecode.m_sws_ctx = sws_getContext(m_mediainfo.m_width, m_mediainfo.m_height, static_cast<AVPixelFormat>(m_mediainfo.m_pixfmt),
+                                            m_dst_frameinfo.m_width, m_mediainfo.m_height, dst_pixfmt,
+                                            SWS_POINT, nullptr, nullptr, nullptr
+                                            );
+
+    }
+
+    if (m_mediainfo.m_samplerate != m_dst_frameinfo.m_samplerate
+        || AV_SAMPLE_FMT_S16 != m_adecode.m_decode_ctx->sample_fmt)
+    {
+        m_adecode.m_swr_ctx = swr_alloc_set_opts(nullptr, m_adecode.m_decode_ctx->channel_layout, AV_SAMPLE_FMT_S16, m_dst_frameinfo.m_samplerate,
+                                                 m_adecode.m_decode_ctx->channel_layout, m_adecode.m_decode_ctx->sample_fmt, m_adecode.m_decode_ctx->sample_rate,
+                                                 0, nullptr
+                                                 );
+        m_adecode.m_sw_frame = av_frame_alloc();
+    }
+
+
+
+    return true;
+}
+
 int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedata, int frameindex)
 {
-    if (frameindex>m_mediainfo.nb_frames || frameindex<0)
+    if (frameindex > m_mediainfo.m_nb_frames || frameindex < 0)
     {
         return -1;
     }
@@ -105,11 +138,6 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedat
     return 0;
 }
 
-void FFmpegReader::CEXFFmpegReader::SetReadMode(ReadMode mode)
-{
-    m_read_mode = mode;
-    return;
-}
 
 MediaInfo FFmpegReader::CEXFFmpegReader::GetMediaInfo() const
 {
@@ -126,7 +154,7 @@ bool FFmpegReader::CEXFFmpegReader::InitDecoder(enum AVMediaType type)
         return false;
 	}
 
-    AVStream* stream = decode->stream = m_filefmt_ctx->streams[ret];
+    AVStream* stream = decode->m_stream = m_filefmt_ctx->streams[ret];
 	enum AVCodecID codec_id = stream->codecpar->codec_id;
 
     if (AV_CODEC_ID_VP8 == codec_id || AV_CODEC_ID_VP9 == codec_id) {
@@ -136,15 +164,15 @@ bool FFmpegReader::CEXFFmpegReader::InitDecoder(enum AVMediaType type)
 
 		if (tag && strcmp(tag->value, "1") == 0) {
 			const char* codecname = (codec_id == AV_CODEC_ID_VP8) ? "libvpx" : "libvpx-vp9";
-            decode->codec = avcodec_find_decoder_by_name(codecname);
+            decode->m_codec = avcodec_find_decoder_by_name(codecname);
 		}
 	}
     else
     {
-        decode->codec = avcodec_find_decoder(codec_id);
+        decode->m_codec = avcodec_find_decoder(codec_id);
     }
 
-    if (nullptr == decode->codec)
+    if (nullptr == decode->m_codec)
     {
         return false;
     }
@@ -154,9 +182,8 @@ bool FFmpegReader::CEXFFmpegReader::InitDecoder(enum AVMediaType type)
         return false;
     }
     
-    decode->decode_frame =  av_frame_alloc();
-    decode->sw_frame = av_frame_alloc();
-    decode->read_pkt = av_packet_alloc();
+    decode->m_decode_frame =  av_frame_alloc();
+    decode->m_read_pkt = av_packet_alloc();
     return true;
 }
 
@@ -165,20 +192,20 @@ bool FFmpegReader::CEXFFmpegReader::OpenCodec(mp_decode* decode)
     AVCodecContext* codec_ctx(nullptr);
     int ret(-1);
 
-    codec_ctx = avcodec_alloc_context3(decode->codec);
+    codec_ctx = avcodec_alloc_context3(decode->m_codec);
 	if (nullptr == codec_ctx) {	
 		return false;
 	}
 
     do 
     {
-		ret = avcodec_parameters_to_context(codec_ctx, decode->stream->codecpar);
+		ret = avcodec_parameters_to_context(codec_ctx, decode->m_stream->codecpar);
 		if (ret < 0)
 		{
 			break;
 		}
         
-        ret = avcodec_open2(codec_ctx, decode->codec, nullptr);
+        ret = avcodec_open2(codec_ctx, decode->m_codec, nullptr);
         if (ret < 0)
         {
             break;
@@ -192,27 +219,29 @@ bool FFmpegReader::CEXFFmpegReader::OpenCodec(mp_decode* decode)
         return false;
 	}
 
-    decode->decoder = codec_ctx;
+    decode->m_decode_ctx = codec_ctx;
 
     return true;
 }
 
 void FFmpegReader::CEXFFmpegReader::ParaseMediaInfo()
 {
-    m_mediainfo.width = m_vdecode.stream->codecpar->width;
-    m_mediainfo.height = m_vdecode.stream->codecpar->height;
-    m_mediainfo.pixfmt = m_vdecode.decoder->pix_fmt;
-    strcpy_s(m_mediainfo.pix_name, av_get_pix_fmt_name(static_cast<AVPixelFormat>(m_mediainfo.pixfmt)));
-    m_mediainfo.nb_frames = m_vdecode.stream->nb_frames;
-    m_mediainfo.gop_size = std::max(m_vdecode.decoder->gop_size, 1);
-    if (0 == m_mediainfo.nb_frames)
+    m_mediainfo.m_width = m_vdecode.m_stream->codecpar->width;
+    m_mediainfo.m_height = m_vdecode.m_stream->codecpar->height;
+    m_mediainfo.m_pixfmt = m_vdecode.m_decode_ctx->pix_fmt;
+    strcpy_s(m_mediainfo.m_pixfmt_name, av_get_pix_fmt_name(static_cast<AVPixelFormat>(m_mediainfo.m_pixfmt)));
+    m_mediainfo.m_nb_frames = m_vdecode.m_stream->nb_frames;
+    m_mediainfo.m_gop_size = std::max(m_vdecode.m_decode_ctx->gop_size, 1);
+    if (0 == m_mediainfo.m_nb_frames)
     {
-        int64_t duration_second = m_vdecode.stream->duration * av_q2d(m_vdecode.stream->time_base);
-        m_mediainfo.nb_frames = static_cast<int64_t>(duration_second * av_q2d (m_vdecode.stream->avg_frame_rate));
+        int64_t duration_second = m_vdecode.m_stream->duration * av_q2d(m_vdecode.m_stream->time_base);
+        m_mediainfo.m_nb_frames = static_cast<int64_t>(duration_second * av_q2d (m_vdecode.m_stream->avg_frame_rate));
     }
 
-    m_mediainfo.audio_samplerate = m_adecode.stream->codecpar->sample_rate;
-    
+    m_mediainfo.m_samplerate = m_adecode.m_stream->codecpar->sample_rate;
+    m_mediainfo.m_audio_depth = m_adecode.m_stream->codecpar->bits_per_coded_sample;
+    m_mediainfo.m_samplefmt = m_adecode.m_decode_ctx->sample_fmt;
+    strcpy_s(m_mediainfo.m_samplefmt_name, av_get_sample_fmt_name(m_adecode.m_decode_ctx->sample_fmt));
     return;
 }
 
@@ -229,33 +258,45 @@ void FFmpegReader::CEXFFmpegReader::CloseFile()
 
 void FFmpegReader::CEXFFmpegReader::ClearDecoderRes(mp_decode* decode)
 {
-	if (nullptr != decode->decoder)
+	if (nullptr != decode->m_decode_ctx)
 	{
-		avcodec_free_context(&decode->decoder);
+		avcodec_free_context(&decode->m_decode_ctx);
 	}
 
-	if (nullptr != decode->sw_frame)
+	if (nullptr != decode->m_sw_frame)
 	{
-        av_frame_unref(decode->sw_frame);
-		av_frame_free(&decode->sw_frame);
+        av_frame_unref(decode->m_sw_frame);
+		av_frame_free(&decode->m_sw_frame);
 	}
 
-	if (nullptr != decode->decode_frame)
+	if (nullptr != decode->m_decode_frame)
 	{
-		av_frame_unref(decode->decode_frame);
-		av_frame_free(&decode->decode_frame);
+		av_frame_unref(decode->m_decode_frame);
+		av_frame_free(&decode->m_decode_frame);
 	}
 
-    if (nullptr != decode->read_pkt)
+    if (nullptr != decode->m_read_pkt)
     {
-        av_packet_unref(decode->read_pkt);
-        av_packet_free(&decode->read_pkt);
+        av_packet_unref(decode->m_read_pkt);
+        av_packet_free(&decode->m_read_pkt);
     }
 
-	if (nullptr != decode->decoder)
+	if (nullptr != decode->m_decode_ctx)
 	{
-		avcodec_free_context(&decode->decoder);
+		avcodec_free_context(&decode->m_decode_ctx);
 	}
+
+    if (nullptr != decode->m_sws_ctx)
+    {
+        sws_freeContext(decode->m_sws_ctx);
+        decode->m_sws_ctx = nullptr;
+    }
+
+    if (nullptr != decode->m_swr_ctx)
+    {
+        swr_free(&decode->m_swr_ctx);
+        decode->m_swr_ctx = nullptr;
+    }
 
     return;
 }
@@ -275,10 +316,10 @@ void FFmpegReader::CEXFFmpegReader::FlushDecoder()
 	}*/
 
 
-    avcodec_flush_buffers(m_vdecode.decoder);
-    avcodec_flush_buffers(m_adecode.decoder);
-	m_vdecode.eof = m_adecode.eof = false;
-    m_vdecode.frame_ready = m_adecode.frame_ready = false;
+    avcodec_flush_buffers(m_vdecode.m_decode_ctx);
+    avcodec_flush_buffers(m_adecode.m_decode_ctx);
+	m_vdecode.m_eof = m_adecode.m_eof = false;
+    m_vdecode.m_frame_ready = m_adecode.m_frame_ready = false;
 }
 
 void FFmpegReader::CEXFFmpegReader::FlushFrameCache()
@@ -309,9 +350,8 @@ void FFmpegReader::CEXFFmpegReader::ThreadFunc()
                 SeekFile(0);
             }
         }
-
         PrepareFrame();
-        PushFrameToCache();
+        MoveFrameToCache();
     }
 
     return;
@@ -341,15 +381,15 @@ int FFmpegReader::CEXFFmpegReader::ReadNextPacket()
 
 	if (read_pkt.size > 0)
 	{
-		if (m_hasvideo && read_pkt.stream_index == m_vdecode.stream->index)
+		if (m_vdecode.m_need && m_mediainfo.m_hasvideo && read_pkt.stream_index == m_vdecode.m_stream->index)
 		{
-            av_packet_move_ref(m_vdecode.read_pkt, &read_pkt);
-            m_vdecode.packet_reafy = true;
+            av_packet_move_ref(m_vdecode.m_read_pkt, &read_pkt);
+            m_vdecode.m_packet_ready = true;
 		}
-		else if (m_hasaudio && read_pkt.stream_index == m_adecode.stream->index)
+		else if (m_adecode.m_need && m_mediainfo.m_hasaudio && read_pkt.stream_index == m_adecode.m_stream->index)
 		{
-            av_packet_move_ref(m_adecode.read_pkt, &read_pkt);
-            m_adecode.packet_reafy = true;
+            av_packet_move_ref(m_adecode.m_read_pkt, &read_pkt);
+            m_adecode.m_packet_ready = true;
 		}
 	}
     
@@ -367,13 +407,13 @@ bool FFmpegReader::CEXFFmpegReader::PrepareFrame()
             rec = ReadNextPacket();
             if (AVERROR_EOF == rec)
             {
-                m_eof = true;
+                m_vdecode.m_eof = m_adecode.m_eof = m_eof = true;
                 break;
             }
         }
 
          rec = DecodePacket();
-         if (0 == rec || m_vdecode.eof)
+         if (0 == rec || m_vdecode.m_eof)
          {
              return true;
          }
@@ -385,41 +425,46 @@ bool FFmpegReader::CEXFFmpegReader::PrepareFrame()
 int FFmpegReader::CEXFFmpegReader::DecodePacket()
 {
     
-    int rec = avcodec_receive_frame(m_vdecode.decoder, m_vdecode.decode_frame);
+    int rec = avcodec_receive_frame(m_vdecode.m_decode_ctx, m_vdecode.m_decode_frame);
 	if (rec != 0 && rec != AVERROR(EAGAIN)) {
 		if (AVERROR_EOF == rec)
 		{
-            m_vdecode.eof = true;
+            m_vdecode.m_eof = true;
 		}
 		return rec;
 	}
 
-    if (!m_vdecode.packet_reafy)
+    if (!m_vdecode.m_packet_ready)
     {
         return rec;
     }
 
 
-    rec = avcodec_send_packet(m_vdecode.decoder, m_vdecode.read_pkt);
+    rec = avcodec_send_packet(m_vdecode.m_decode_ctx, m_vdecode.m_read_pkt);
     if (rec != 0)
     {
         return rec;
     }
 
-    rec = avcodec_receive_frame(m_vdecode.decoder, m_vdecode.decode_frame);
+    rec = avcodec_receive_frame(m_vdecode.m_decode_ctx, m_vdecode.m_decode_frame);
 	if (rec != 0)
 	{
 		return rec;
 	}
 
-    m_vdecode.frame_ready = true;
-    m_vdecode.packet_reafy = false;
+    m_vdecode.m_frame_ready = true;
+    m_vdecode.m_packet_ready = false;
     return 0;
 }
 
 bool FFmpegReader::CEXFFmpegReader::CheckContinueDecode()
 {
-    if (m_hasvideo && !m_eof && !m_vdecode.frame_ready)
+    if (m_mediainfo.m_hasvideo && !m_eof && !m_vdecode.m_frame_ready)
+    {
+        return true;
+    }
+
+    if (m_mediainfo.m_hasaudio && !m_eof && !m_vdecode.m_frame_ready)
     {
         return true;
     }
@@ -427,16 +472,16 @@ bool FFmpegReader::CEXFFmpegReader::CheckContinueDecode()
     return false;
 }
 
-void FFmpegReader::CEXFFmpegReader::PushFrameToCache()
+void FFmpegReader::CEXFFmpegReader::MoveFrameToCache()
 {
-    if (!m_vdecode.frame_ready)
+    if (!m_vdecode.m_frame_ready)
     {
         return ;
     }
 
-    m_vdecode.frame_ready = false;
+    m_vdecode.m_frame_ready = false;
     AVFrame* frame = av_frame_alloc();
-    av_frame_move_ref(frame, m_vdecode.decode_frame);
+    av_frame_move_ref(frame, m_vdecode.m_decode_frame);
 
     {
 		std::unique_lock<std::mutex> vcache_lock(m_vcache_mux);
@@ -448,14 +493,36 @@ void FFmpegReader::CEXFFmpegReader::PushFrameToCache()
     return;
 }
 
+AVPixelFormat FFmpegReader::CEXFFmpegReader::GetPixfmt()
+{
+    switch (m_dst_frameinfo.m_pixfmt)
+    {
+    case PixFmt::kRGB:
+        return AV_PIX_FMT_RGB24;
+    case PixFmt::kYUVP:
+        return AV_PIX_FMT_YUV444P;
+    case PixFmt::kYUV420P:
+        return AV_PIX_FMT_YUV420P;
+    case PixFmt::kYUV422:
+        return AV_PIX_FMT_YUYV422;
+    case PixFmt::kYUV422P:
+        return AV_PIX_FMT_YUV422P;
+    default:
+        break;
+    }
+
+    return AV_PIX_FMT_NONE;
+}
+
 FFmpegReader::FFmpegReader() :m_impl_reader(std::make_unique<CEXFFmpegReader>()) {}
 FFmpegReader::~FFmpegReader() {}
 bool FFmpegReader::InitAVFmt(const std::string& filename) {return m_impl_reader->InitAVFmt(filename);}
 MediaInfo FFmpegReader::GetMediaInfo() {return m_impl_reader->GetMediaInfo();}
 
-void FFmpegReader::SetFrameParam(PixFmt pixfmt, int width, int height)
+bool FFmpegReader::SetFrameParam(const FrameDataParam& dataparams)
 {
-    return;
+    return m_impl_reader->SetFrameParam(dataparams);
 }
+
 int  FFmpegReader::ReadVideoFrame(std::vector<uint8_t*>& framedata, int frameindex) {return m_impl_reader->GetVideoFrame(framedata, frameindex);};
 void FFmpegReader::Reset() {return;}
