@@ -13,25 +13,27 @@ extern "C"
 	#include "libavcodec/avfft.h"
 	#include "libavutil/avutil.h"
     #include "libavutil/pixdesc.h"
+    #include "libswscale/swscale.h"
+	#include "libswresample/swresample.h"
 }
 
 
  struct mp_decode 
  {
-	AVStream* stream;
-	bool audio;
+	AVStream*		m_stream;
+	AVCodecContext* m_decode_ctx;
+	AVCodec*	    m_codec;
 
-	AVCodecContext* decoder;
-	AVCodec* codec;
+	AVFrame*		m_sw_frame;
+	AVFrame*		m_decode_frame;
+	AVPacket*       m_read_pkt;
+	SwsContext*     m_sws_ctx;
+	SwrContext*     m_swr_ctx;
 
-	AVFrame* sw_frame;
-	AVFrame* decode_frame;
-	AVPacket* read_pkt;
-
-	bool got_first_keyframe;
-	bool frame_ready;
-	bool packet_reafy;
-	bool eof;
+	bool			m_frame_ready;
+	bool			m_packet_ready;
+	bool			m_eof;
+	bool            m_need;
 };
 
 
@@ -45,8 +47,7 @@ public:
 
 	void Reset();
 	bool InitAVFmt(const std::string& filename);
-	void SetReadMode(ReadMode mode);
-	
+	bool SetFrameParam(const FrameDataParam& dataparams);
 	int  GetVideoFrame(std::vector<uint8_t*>& framedata,  int frameindex);
 	MediaInfo  GetMediaInfo() const;
 
@@ -61,7 +62,8 @@ private:
 	bool PrepareFrame();
 	int	 DecodePacket();
 	bool CheckContinueDecode();
-	void PushFrameToCache();
+	void MoveFrameToCache();
+	AVPixelFormat GetPixfmt();
 
 private:
 	void CloseFile();
@@ -74,12 +76,10 @@ private:
 	mp_decode        m_vdecode;
 	mp_decode		 m_adecode;
 	MediaInfo		 m_mediainfo;
-	ReadMode	     m_read_mode;
+	FrameDataParam   m_dst_frameinfo;
 	bool			 m_exit;
     int				 m_cur_pos;
 	int				 m_seek_pos;
-	bool	         m_hasvideo;
-	bool			 m_hasaudio;
 	bool		     m_eof;
 
 

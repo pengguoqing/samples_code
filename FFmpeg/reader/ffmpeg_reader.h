@@ -19,41 +19,47 @@
 
 typedef struct media_params
 {
-	uint64_t  nb_frames;
-	int		  pixfmt;
-	char	  pix_name[9];
-	int		  width;
-	int		  height;
-	int		  gop_size;
-	uint64_t  audio_samplerate;
+	uint64_t  m_nb_frames;
+	int		  m_pixfmt;
+	char	  m_pixfmt_name[9];
+	int		  m_width;
+	int		  m_height;
+	int		  m_gop_size;
+	uint64_t  m_samplerate;
+	int       m_samplefmt;
+	char      m_samplefmt_name[9];
+	int       m_audio_depth;
+	bool	  m_hasvideo;
+	bool      m_hasaudio;
 }MediaInfo;
 
-enum class ReadMode
-{
-	kSeek,
-	kPlay,
-};
 
 enum class PixFmt
 {
-	kOrigin,
 	kYUV422,
 	kYUV422P,
-	kYUV420,
 	kYUV420P,
-	kYUV,
+	kYUVP,
 	kRGB
 };
 
-enum class RecErrors
+enum class MetaDataType
 {
-	kInitAVError,
-	kFramePosError,
-	
+	kVideo,
+	kAudio,
 };
 
+struct FrameDataParam
+{
+	bool         m_origin;
+	MetaDataType m_type;
+	int			 m_width;
+	int			 m_height;
+	PixFmt		 m_pixfmt;
 
-
+	int			 m_audio_depth;
+	int			 m_samplerate;	
+};
 
 class FFmpegReader
 {
@@ -64,7 +70,7 @@ public:
 	void Reset();
 	bool InitAVFmt(const std::string& filename);
 	
-	void SetFrameParam(PixFmt pixfmt, int width, int height);
+	bool SetFrameParam(const FrameDataParam& dataparams);
 	int  ReadVideoFrame(std::vector<uint8_t*>& framedata, int frameindex);
 	MediaInfo  GetMediaInfo();
 private:
