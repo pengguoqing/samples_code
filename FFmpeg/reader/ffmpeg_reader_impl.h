@@ -15,6 +15,8 @@ extern "C"
     #include "libavutil/pixdesc.h"
     #include "libswscale/swscale.h"
 	#include "libswresample/swresample.h"
+	#include "libavutil/imgutils.h"
+    #include "libavutil/samplefmt.h"
 }
 
 
@@ -27,8 +29,10 @@ extern "C"
 	AVFrame*		m_sw_frame;
 	AVFrame*		m_decode_frame;
 	AVPacket*       m_read_pkt;
+
 	SwsContext*     m_sws_ctx;
-	SwrContext*     m_swr_ctx;
+
+	SwrContext* m_swr_ctx;
 
 	bool			m_frame_ready;
 	bool			m_packet_ready;
@@ -75,6 +79,7 @@ private:
 	AVFormatContext* m_filefmt_ctx;
 	mp_decode        m_vdecode;
 	mp_decode		 m_adecode;
+	mp_decode*       m_curdecode;
 	MediaInfo		 m_mediainfo;
 	FrameDataParam   m_dst_frameinfo;
 	bool			 m_exit;
@@ -85,8 +90,8 @@ private:
 
 	const int					m_maxche_size;
 	std::mutex					m_vcache_mux;
-	std::condition_variable_any m_vcache_condi;
-	std::map<int, AVFrame*>		m_vframe_cache;
+	std::condition_variable_any m_cache_condi;
+	std::map<int, AVFrame*>		m_frame_cache;
 	std::mutex		 m_status_mux;
 	bool             m_seek;
 	bool			 m_reset;
