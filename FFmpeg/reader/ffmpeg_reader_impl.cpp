@@ -117,9 +117,9 @@ bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& datapara
         if (m_prepare_th.joinable())
         {
             m_prepare_th.join();
-            m_exit = false;
+            
         }
-
+        m_exit = false;
         SeekFile(0);
 
 		std::thread prepare_th(&CEXFFmpegReader::ThreadFunc, this);
@@ -289,24 +289,24 @@ void FFmpegReader::CEXFFmpegReader::CloseFile()
 
 void FFmpegReader::CEXFFmpegReader::ClearDecoderRes(mp_decode* decode)
 {
-	//if (nullptr != decode->m_decode_ctx)
+	if (nullptr != decode->m_decode_ctx)
 	{
 		avcodec_free_context(&decode->m_decode_ctx);
 	}
 
-	//if (nullptr != decode->m_sw_frame)
+	if (nullptr != decode->m_sw_frame)
 	{
         av_frame_unref(decode->m_sw_frame);
 		av_frame_free(&decode->m_sw_frame);
 	}
 
-	//if (nullptr != decode->m_decode_frame)
+	if (nullptr != decode->m_decode_frame)
 	{
 		av_frame_unref(decode->m_decode_frame);
 		av_frame_free(&decode->m_decode_frame);
 	}
 
-    //if (nullptr != decode->m_read_pkt)
+    if (nullptr != decode->m_read_pkt)
     {
         av_packet_unref(decode->m_read_pkt);
         av_packet_free(&decode->m_read_pkt);
