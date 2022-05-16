@@ -86,7 +86,8 @@ private:
     int				 m_cur_pos;
 	int				 m_seek_pos;
 	bool		     m_eof;
-
+	bool			 m_sws;
+	bool             m_swr;
 
 	const int					m_maxche_size;
 	std::mutex					m_vcache_mux;

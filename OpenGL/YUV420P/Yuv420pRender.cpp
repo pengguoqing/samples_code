@@ -35,8 +35,7 @@ Yuv420pRender::Yuv420pRender()
 	 m_tex_u(-1),
 	 m_tex_v(-1),
 	 m_shader_pro(-1),
-	 m_vertex_array(-1),
-	 m_wnd(nullptr)
+	 m_vertex_array(-1)
 {
 
 }
@@ -49,10 +48,6 @@ Yuv420pRender::~Yuv420pRender()
 
 bool Yuv420pRender::InitRender(int frame_w, int frame_h)
 {
-	if (!InitEnviroment())
-	{
-		return false;
-	}
 	
 	if (!InitShader())
 	{
@@ -92,38 +87,7 @@ void Yuv420pRender::RenderFrame()
 	glBindVertexArray(m_vertex_array);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	
-	while (!glfwWindowShouldClose(m_wnd))
-	{
-		glfwSwapBuffers(m_wnd);
-		glfwPollEvents();
-	}
-	
 	return ;
-}
-
-bool Yuv420pRender::InitEnviroment()
-{
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	m_wnd = glfwCreateWindow(m_wnd_width, m_wnd_height, "Yuv420pRender", nullptr, nullptr);
-	if (nullptr == m_wnd)
-	{
-		glfwTerminate();
-		return false;
-	}
-
-	glfwMakeContextCurrent(m_wnd);
-	glfwSetFramebufferSizeCallback(m_wnd, window_size_callback);
-	//glfwSetInputMode(m_wnd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		return false;
-	}
-
-	return true;
 }
 
 bool Yuv420pRender::InitShader()

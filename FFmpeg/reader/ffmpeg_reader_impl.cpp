@@ -10,7 +10,9 @@ FFmpegReader::CEXFFmpegReader::CEXFFmpegReader()
      m_reset(false),
      m_raw_data(false),
      m_eof(false),
-     m_curdecode(nullptr)
+     m_curdecode(nullptr),
+     m_sws(false),
+     m_swr(false)
 {
     memset(&m_vdecode, 0, sizeof(mp_decode));
     memset(&m_adecode, 0, sizeof(mp_decode));
@@ -98,7 +100,7 @@ bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& datapara
                                             m_dst_frameinfo.m_width, m_mediainfo.m_height, dst_pixfmt,
                                             SWS_POINT, nullptr, nullptr, nullptr
                                             );
-     
+         m_swr = true;
     }
 
     if (m_mediainfo.m_samplerate != m_dst_frameinfo.m_samplerate
@@ -109,6 +111,7 @@ bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& datapara
                                                  m_adecode.m_decode_ctx->channel_layout, m_adecode.m_decode_ctx->sample_fmt, m_adecode.m_decode_ctx->sample_rate,
                                                  0, nullptr
                                                  );
+        m_swr = true;
     }
 
     if (nullptr != m_curdecode)
@@ -153,6 +156,7 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedat
 			std::unique_lock<std::mutex> seek_lock(m_status_mux);
             m_cur_pos = m_seek_pos = frameindex;
 			m_seek = true;
+            m_cache_condi.notify_one();
 		}
 
 		m_cache_condi.wait(video_cache_lock, [this, frameindex, &search] { return m_frame_cache.end() != (search = m_frame_cache.find(frameindex)); });
@@ -160,11 +164,10 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedat
     } while (false);
 
     uint8_t** arr_data = search->second->data;
-    for (; nullptr != *arr_data; arr_data++)
+    for (int i=0; i<4; i++)
     {
-        framedata.push_back(*arr_data);
+        framedata[i] = *arr_data++;
     }
-    
     return 0;
 }
 
@@ -346,7 +349,15 @@ void FFmpegReader::CEXFFmpegReader::FlushFrameCache()
 {
     for (auto frame : m_frame_cache)
     {
-        av_frame_unref(frame.second);
+        if (m_sws || m_swr)
+        {
+             av_free(*frame.second->data);
+        }
+        else
+        {
+            av_frame_unref(frame.second);
+        }
+       
         av_frame_free(&frame.second);
     }
     m_frame_cache.clear();
@@ -499,51 +510,40 @@ void FFmpegReader::CEXFFmpegReader::MoveFrameToCache()
     }
 
     m_curdecode->m_frame_ready = false;
-    AVFrame* frame = av_frame_alloc();
-    av_frame_move_ref(frame, m_curdecode->m_decode_frame);
+    AVFrame* useframe = av_frame_alloc();
+    AVFrame* deframe = m_curdecode->m_decode_frame;
     if ( (MetaDataType::kVideo == m_dst_frameinfo.m_type) && nullptr != m_curdecode->m_sws_ctx)
     {
-		uint8_t* scale_pic[4];
-		int		 scale_linsize[4];
+
         AVPixelFormat dst_pixfmt = GetPixfmt();
-        av_image_alloc(scale_pic, scale_linsize, m_dst_frameinfo.m_width, m_dst_frameinfo.m_height, dst_pixfmt, 32);
+        av_image_alloc(useframe->data, useframe->linesize, m_dst_frameinfo.m_width, m_dst_frameinfo.m_height, dst_pixfmt, 32);
 
-        sws_scale(m_curdecode->m_sws_ctx, frame->data, frame->linesize, frame->width, frame->height,
-                 scale_pic, scale_linsize);
+        sws_scale(m_curdecode->m_sws_ctx, deframe->data, deframe->linesize, deframe->width, deframe->height,
+                  useframe->data, useframe->linesize);
 
-        av_frame_unref(frame);
-        for (int i=0; i<4; i++)
-        {
-            frame->data[i] = scale_pic[i];
-			frame->linesize[i] = abs(scale_linsize[i]);
-        }
+        useframe->pts = deframe->pts;
+        av_frame_unref(deframe);
     }
 
     if (nullptr != m_adecode.m_swr_ctx && MetaDataType::kAudio == m_dst_frameinfo.m_type)
     {
-        uint8_t* swr_sample[4];
-		int dst_frames = (int)av_rescale_rnd(frame->nb_samples, m_dst_frameinfo.m_samplerate,
+		int dst_frames = (int)av_rescale_rnd(deframe->nb_samples, m_dst_frameinfo.m_samplerate,
             m_curdecode->m_decode_ctx->sample_rate,
 			AV_ROUND_UP);
 
-		av_samples_alloc(swr_sample, nullptr, m_curdecode->m_decode_ctx->channels,
+		av_samples_alloc(useframe->data, nullptr, m_curdecode->m_decode_ctx->channels,
             dst_frames, AV_SAMPLE_FMT_S16, 0);
 
-        swr_convert(m_curdecode->m_swr_ctx, swr_sample, dst_frames, (const uint8_t**)frame->data, frame->nb_samples);
+        swr_convert(m_curdecode->m_swr_ctx, useframe->data, dst_frames, (const uint8_t**)deframe->data, deframe->nb_samples);
 
-        av_frame_unref(frame);
-        for (int i=0; i<4; i++)
-        {
-            frame->data[i] = swr_sample[i];
-        }
+        useframe->pts = deframe->pts;
+        av_frame_unref(deframe);
     }
-
-
 
     {
 		std::unique_lock<std::mutex> vcache_lock(m_vcache_mux);
-		m_cache_condi.wait(vcache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_exit; });
-		m_frame_cache.insert(pair<int, AVFrame*>(m_cur_pos++, frame));
+		m_cache_condi.wait(vcache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_exit || m_seek; });
+		m_frame_cache.insert(pair<int, AVFrame*>(m_cur_pos++, useframe));
     }
    
     m_cache_condi.notify_one();
