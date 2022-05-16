@@ -14,7 +14,6 @@ public:
 	void RenderFrame();
 
 private:
-	bool InitEnviroment();
 	bool InitShader();
 	bool CreateTexture();
 
@@ -26,7 +25,6 @@ private:
 	uint32_t m_tex_v;
 	uint32_t m_shader_pro;
 	uint32_t m_vertex_array;
-	GLFWwindow* m_wnd;
 	const  int m_wnd_width;
 	const  int m_wnd_height;
 
