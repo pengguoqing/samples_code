@@ -45,15 +45,26 @@ int main(int agrc, char* argv[])
 
 	int frameindex = 0;
 	vector<uint8_t*> framedata(4);
+	framedata[0] = new uint8_t[1280*720]();
+	memset(framedata[0],235, 1280 * 720);
+
+	framedata[1] = new uint8_t[1280 * 720/4]();
+	memset(framedata[1], 240, 1280 * 720/4);
+
+	framedata[2] = new uint8_t[1280 * 720 / 4]();
+	memset(framedata[2], 240, 1280 * 720 / 4);
+
 	while (!glfwWindowShouldClose(wnd))
 	{
-		clip_reader.ReadVideoFrame(framedata, frameindex++);
-		video_render.UpLoadFrame(framedata);
-		video_render.RenderFrame();
+		glClearColor(0.f, 0.f, 1.f, 0.f);
+		glClear(GL_COLOR_BUFFER_BIT);
 		
+		//video_render.UpLoadFrame(framedata);
+		video_render.RenderFrame();
 		glfwSwapBuffers(wnd);
 		glfwPollEvents();
 		this_thread::sleep_for(chrono::milliseconds(40));
+		//clip_reader.ReadVideoFrame(framedata, frameindex++);
 	}
 	
     return 0;

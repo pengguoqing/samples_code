@@ -8,7 +8,9 @@ Yuv420pRender::Yuv420pRender()
 	 m_tex_y(-1),
 	 m_tex_u(-1),
 	 m_tex_v(-1),
-	 m_vertex_array(-1)
+	 m_vertex_array(-1),
+	 m_vertex_buffer(-1),
+	 m_index_buffer(-1)
 {
 
 }
@@ -16,6 +18,8 @@ Yuv420pRender::Yuv420pRender()
 Yuv420pRender::~Yuv420pRender()
 {
 	glDeleteVertexArrays(1, &m_vertex_array);
+	glDeleteBuffers(1, &m_vertex_buffer);
+	glDeleteBuffers(1, &m_index_buffer);
 	glfwTerminate();
 }
 
@@ -33,22 +37,27 @@ bool Yuv420pRender::InitRender(int frame_w, int frame_h)
 	{
 		return false;
 	}
-
+	glBindVertexArray(m_vertex_array);
+	m_shader_parse.use();
 	return true;
 }
 
 bool Yuv420pRender::UpLoadFrame(const std::vector<uint8_t*>& frame_data)
 {
+	glBindTexture(GL_TEXTURE_2D, m_tex_y);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width, m_tex_height, GL_RED, GL_UNSIGNED_BYTE, frame_data[0]);
+	
+	glBindTexture(GL_TEXTURE_2D, m_tex_u);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width/2, m_tex_height/2, GL_RED, GL_UNSIGNED_BYTE, frame_data[1]);
+	
+	glBindTexture(GL_TEXTURE_2D, m_tex_v);
 	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width/2, m_tex_height/2, GL_RED, GL_UNSIGNED_BYTE, frame_data[2]);
+	
 	return true;
 }
 
 void Yuv420pRender::RenderFrame()
 {
-	glClearColor(0.f, 0.5f, 0.f, 0.f);
-	
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m_tex_y);
 	glActiveTexture(GL_TEXTURE1);
@@ -56,7 +65,6 @@ void Yuv420pRender::RenderFrame()
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, m_tex_v);
 
-	glBindVertexArray(m_vertex_array);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	
 	return ;
@@ -64,7 +72,7 @@ void Yuv420pRender::RenderFrame()
 
 bool Yuv420pRender::InitShader()
 {
-	m_shader_parse.InitShader("vertex.glsl", "frage.glsl");
+	m_shader_parse.InitShader("vertex.shader", "fragment.shader");
 
 	float vertex_coord_data[] = {
 		-1.f, -1.f, 0.f,   0.f, 0.f,
@@ -73,22 +81,23 @@ bool Yuv420pRender::InitShader()
 		 1.f, -1.f, 0.f,   1.f, 0.f,
 	};
 
+
 	float vertx_index_data[] = {
 		0, 1, 2,
-		2, 3, 1
+		2, 3, 0
 	};
 
-	uint32_t gl_vertex_buffer, gl_index_buffer;
-	glGenBuffers(1, &gl_vertex_buffer);
-	glGenBuffers(1, &gl_index_buffer);
+	uint32_t m_vertex_buffer, m_index_buffer;
+	glGenBuffers(1, &m_vertex_buffer);
+	glGenBuffers(1, &m_index_buffer);
 
 	glGenVertexArrays(1, &m_vertex_array);
 	glBindVertexArray(m_vertex_array);
 
-	glBindBuffer(GL_ARRAY_BUFFER, gl_vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, m_vertex_buffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_coord_data), vertex_coord_data, GL_STATIC_DRAW);
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gl_index_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_index_buffer);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertx_index_data), vertx_index_data, GL_STATIC_DRAW);
 	
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
@@ -97,7 +106,7 @@ bool Yuv420pRender::InitShader()
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3*sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	glBindVertexArray(0);
+	glBindVertexArray(m_vertex_array);
 
 	return true;
 }
@@ -138,8 +147,4 @@ bool Yuv420pRender::CreateTexture()
 	return true;
 }
 
-void Yuv420pRender::window_size_callback(GLFWwindow* win, int width, int height)
-{
-	glViewport(0, 0, width, height);
-	return;
-}
+

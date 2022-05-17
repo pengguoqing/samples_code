@@ -18,13 +18,13 @@ private:
 	bool InitShader();
 	bool CreateTexture();
 
-	static void window_size_callback(GLFWwindow* win, int width, int height);
-
 private:
     uint32_t m_tex_y;
 	uint32_t m_tex_u;
 	uint32_t m_tex_v;
 	uint32_t m_vertex_array;
+	uint32_t m_vertex_buffer;
+	uint32_t m_index_buffer;
 	const  int m_wnd_width;
 	const  int m_wnd_height;
 
