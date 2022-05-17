@@ -1,6 +1,7 @@
 #pragma once
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
+#include "shader_parse.hpp"
 #include <vector>
 
 class Yuv420pRender
@@ -10,7 +11,7 @@ public:
 	~Yuv420pRender();
 
 	bool InitRender(int frame_w, int frame_h);
-	bool UpLoadFrame(const std::vector<uint8_t*> frame_data);
+	bool UpLoadFrame(const std::vector<uint8_t*>& frame_data);
 	void RenderFrame();
 
 private:
@@ -23,12 +24,13 @@ private:
     uint32_t m_tex_y;
 	uint32_t m_tex_u;
 	uint32_t m_tex_v;
-	uint32_t m_shader_pro;
 	uint32_t m_vertex_array;
 	const  int m_wnd_width;
 	const  int m_wnd_height;
 
 	int		 m_tex_width;
 	int		 m_tex_height;
+
+	ShaderParse m_shader_parse;
 };
 

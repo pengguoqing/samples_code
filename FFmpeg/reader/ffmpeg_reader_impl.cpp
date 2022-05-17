@@ -90,21 +90,23 @@ bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& datapara
     }
     
     AVPixelFormat dst_pixfmt = GetPixfmt();
-    if ( m_mediainfo.m_width != m_dst_frameinfo.m_width
-       || m_mediainfo.m_height != m_dst_frameinfo.m_height
-       || m_mediainfo.m_pixfmt != dst_pixfmt
-       )
+    if ( (m_mediainfo.m_width != m_dst_frameinfo.m_width
+          || m_mediainfo.m_height != m_dst_frameinfo.m_height
+          || m_mediainfo.m_pixfmt != dst_pixfmt
+         ) && m_vdecode.m_need )
     {
         sws_freeContext(m_vdecode.m_sws_ctx);
         m_vdecode.m_sws_ctx = sws_getContext(m_mediainfo.m_width, m_mediainfo.m_height, static_cast<AVPixelFormat>(m_mediainfo.m_pixfmt),
-                                            m_dst_frameinfo.m_width, m_mediainfo.m_height, dst_pixfmt,
-                                            SWS_POINT, nullptr, nullptr, nullptr
+                                            m_dst_frameinfo.m_width, m_dst_frameinfo.m_height, dst_pixfmt,
+                                             SWS_FAST_BILINEAR, nullptr, nullptr, nullptr
                                             );
-         m_swr = true;
+         m_sws = true;
     }
 
-    if (m_mediainfo.m_samplerate != m_dst_frameinfo.m_samplerate
-        || AV_SAMPLE_FMT_S16 != m_adecode.m_decode_ctx->sample_fmt)
+    if (  (m_mediainfo.m_samplerate != m_dst_frameinfo.m_samplerate
+          || AV_SAMPLE_FMT_S16 != m_adecode.m_decode_ctx->sample_fmt
+          )&& m_adecode.m_need )
+
     {
 
         m_adecode.m_swr_ctx = swr_alloc_set_opts(m_adecode.m_swr_ctx, m_adecode.m_decode_ctx->channel_layout, AV_SAMPLE_FMT_S16, m_dst_frameinfo.m_samplerate,
@@ -512,33 +514,36 @@ void FFmpegReader::CEXFFmpegReader::MoveFrameToCache()
     m_curdecode->m_frame_ready = false;
     AVFrame* useframe = av_frame_alloc();
     AVFrame* deframe = m_curdecode->m_decode_frame;
-    if ( (MetaDataType::kVideo == m_dst_frameinfo.m_type) && nullptr != m_curdecode->m_sws_ctx)
+    if (m_sws)
     {
-
         AVPixelFormat dst_pixfmt = GetPixfmt();
         av_image_alloc(useframe->data, useframe->linesize, m_dst_frameinfo.m_width, m_dst_frameinfo.m_height, dst_pixfmt, 32);
 
-        sws_scale(m_curdecode->m_sws_ctx, deframe->data, deframe->linesize, deframe->width, deframe->height,
+        sws_scale(m_curdecode->m_sws_ctx, deframe->data, deframe->linesize, 0, deframe->height,
                   useframe->data, useframe->linesize);
 
         useframe->pts = deframe->pts;
         av_frame_unref(deframe);
     }
-
-    if (nullptr != m_adecode.m_swr_ctx && MetaDataType::kAudio == m_dst_frameinfo.m_type)
+    else if (m_swr)
     {
 		int dst_frames = (int)av_rescale_rnd(deframe->nb_samples, m_dst_frameinfo.m_samplerate,
-            m_curdecode->m_decode_ctx->sample_rate,
-			AV_ROUND_UP);
+			                                 m_curdecode->m_decode_ctx->sample_rate,
+			                                 AV_ROUND_UP);
 
 		av_samples_alloc(useframe->data, nullptr, m_curdecode->m_decode_ctx->channels,
-            dst_frames, AV_SAMPLE_FMT_S16, 0);
+			dst_frames, AV_SAMPLE_FMT_S16, 0);
 
-        swr_convert(m_curdecode->m_swr_ctx, useframe->data, dst_frames, (const uint8_t**)deframe->data, deframe->nb_samples);
+		swr_convert(m_curdecode->m_swr_ctx, useframe->data, dst_frames, (const uint8_t**)deframe->data, deframe->nb_samples);
 
-        useframe->pts = deframe->pts;
-        av_frame_unref(deframe);
+		useframe->pts = deframe->pts;
+		av_frame_unref(deframe);
     }
+    else
+    {
+        av_frame_move_ref(useframe, deframe);
+    }
+
 
     {
 		std::unique_lock<std::mutex> vcache_lock(m_vcache_mux);
