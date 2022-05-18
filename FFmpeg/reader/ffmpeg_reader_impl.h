@@ -2,11 +2,12 @@
 
 #include "ffmpeg_reader.h"
 #include <map>
+#include <unordered_map>
 #include <queue>
 #include <mutex>
 #include <condition_variable>
 #include <thread>
-
+#include <iostream>
 extern "C"
 {
 	#include "libavformat/avformat.h"
@@ -51,8 +52,8 @@ public:
 
 	void Reset();
 	bool InitAVFmt(const std::string& filename);
-	bool SetFrameParam(const FrameDataParam& dataparams);
-	int  GetVideoFrame(std::vector<uint8_t*>& framedata,  int frameindex);
+	bool SetFrameParam(const ReaderParam& dataparams);
+	int  GetVideoFrame(FrameInfo& frame,  int frameindex);
 	MediaInfo  GetMediaInfo() const;
 
 private:
@@ -81,7 +82,7 @@ private:
 	mp_decode		 m_adecode;
 	mp_decode*       m_curdecode;
 	MediaInfo		 m_mediainfo;
-	FrameDataParam   m_dst_frameinfo;
+	ReaderParam   m_dst_frameinfo;
 	bool			 m_exit;
     int				 m_cur_pos;
 	int				 m_seek_pos;
@@ -92,10 +93,13 @@ private:
 	const int					m_maxche_size;
 	std::mutex					m_vcache_mux;
 	std::condition_variable_any m_cache_condi;
-	std::map<int, AVFrame*>		m_frame_cache;
+	std::map<int, AVFrame*>	    m_frame_cache;
+	
+	std::condition_variable_any m_status_condi;
 	std::mutex		 m_status_mux;
 	bool             m_seek;
 	bool			 m_reset;
+
 	bool			 m_raw_data;
 
 private:

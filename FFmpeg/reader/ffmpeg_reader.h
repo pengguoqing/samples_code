@@ -49,7 +49,7 @@ enum class MetaDataType
 	kAudio,
 };
 
-struct FrameDataParam
+struct ReaderParam
 {
 	bool         m_origin;
 	MetaDataType m_type;
@@ -61,6 +61,13 @@ struct FrameDataParam
 	int			 m_samplerate;	
 };
 
+
+struct FrameInfo
+{
+	uint8_t* data[8];
+	int64_t  pts;
+};
+
 class FFmpegReader
 {
 public:
@@ -70,8 +77,8 @@ public:
 	void Reset();
 	bool InitAVFmt(const std::string& filename);
 	
-	bool SetFrameParam(const FrameDataParam& dataparams);
-	int  ReadVideoFrame(std::vector<uint8_t*>& framedata, int frameindex);
+	bool SetFrameParam(const ReaderParam& params);
+	int  GetVideoFrame(FrameInfo& frame, int frameindex);
 	MediaInfo  GetMediaInfo();
 private:
 	class CEXFFmpegReader;
