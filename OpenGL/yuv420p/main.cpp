@@ -55,15 +55,14 @@ int main(int agrc, char* argv[])
 	//framedata[2] = new uint8_t[wnd_width * wnd_height / 4]();
 	//memset(framedata[2], 0, wnd_width * wnd_height / 4);
 	FrameInfo frame;
-
-	
+	clip_reader.GetVideoFrame(frame, frameindex++);
 	while (!glfwWindowShouldClose(wnd))
 	{
 		glClearColor(0.f, 0.f, 1.f, 0.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
-		//video_render.UpLoadFrame(framedata);
-		//video_render.RenderFrame();
+		video_render.UpLoadFrame(frame.data[0], frame.data[1], frame.data[2]);
+		video_render.RenderFrame();
 		glfwSwapBuffers(wnd);
 		glfwPollEvents();
 		clip_reader.GetVideoFrame(frame, frameindex++);

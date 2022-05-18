@@ -42,16 +42,16 @@ bool Yuv420pRender::InitRender(int frame_w, int frame_h)
 	return true;
 }
 
-bool Yuv420pRender::UpLoadFrame(const std::vector<uint8_t*>& frame_data)
+bool Yuv420pRender::UpLoadFrame(uint8_t* y, uint8_t* u, uint8_t* v)
 {
 	glBindTexture(GL_TEXTURE_2D, m_tex_y);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width, m_tex_height, GL_RED, GL_UNSIGNED_BYTE, frame_data[0]);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width, m_tex_height, GL_RED, GL_UNSIGNED_BYTE, y);
 	
 	glBindTexture(GL_TEXTURE_2D, m_tex_u);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width/2, m_tex_height/2, GL_RED, GL_UNSIGNED_BYTE, frame_data[1]);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width/2, m_tex_height/2, GL_RED, GL_UNSIGNED_BYTE, u);
 	
 	glBindTexture(GL_TEXTURE_2D, m_tex_v);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width/2, m_tex_height/2, GL_RED, GL_UNSIGNED_BYTE, frame_data[2]);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_tex_width/2, m_tex_height/2, GL_RED, GL_UNSIGNED_BYTE, v);
 	
 	return true;
 }
@@ -75,12 +75,11 @@ bool Yuv420pRender::InitShader()
 	m_shader_parse.InitShader("vertex.shader", "fragment.shader");
 
 	float vertex_coord_data[] = {
-		-1.f, -1.f, 0.f,   0.f, 0.f,
-		-1.f,  1.f, 0.f,   0.f, 1.f,
-		 1.f,  1.f, 0.f,   1.f, 1.f,
-		 1.f, -1.f, 0.f,   1.f, 0.f,
+		-1.f, -1.f, 0.f,   0.f, 1.f,
+		-1.f,  1.f, 0.f,   0.f, 0.f,
+		 1.f,  1.f, 0.f,   1.f, 0.f,
+		 1.f, -1.f, 0.f,   1.f, 1.f,
 	};
-
 
 	uint32_t vertx_index_data[] = {
 		0, 1, 2,
