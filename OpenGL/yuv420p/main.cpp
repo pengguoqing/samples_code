@@ -1,5 +1,6 @@
 #include "yuv420p_render.h"
 #include "ffmpeg_reader.h"
+//#include "EXWinClock.h"
 #include <thread>
 #include <chrono>
 #include <string>
@@ -44,27 +45,34 @@ int main(int agrc, char* argv[])
 	}
 
 	int frameindex = 0;
-	vector<uint8_t*> framedata(4);
-	framedata[0] = new uint8_t[1280*720]();
-	memset(framedata[0],235, 1280 * 720);
+	//vector<uint8_t*> framedata(4);
+	//framedata[0] = new uint8_t[wnd_width * wnd_height]();
+	//memset(framedata[0],0, wnd_width * wnd_height);
 
-	framedata[1] = new uint8_t[1280 * 720/4]();
-	memset(framedata[1], 240, 1280 * 720/4);
+	//framedata[1] = new uint8_t[wnd_width * wnd_height /4]();
+	//memset(framedata[1], 0, wnd_width * wnd_height /4);
 
-	framedata[2] = new uint8_t[1280 * 720 / 4]();
-	memset(framedata[2], 240, 1280 * 720 / 4);
+	//framedata[2] = new uint8_t[wnd_width * wnd_height / 4]();
+	//memset(framedata[2], 0, wnd_width * wnd_height / 4);
+	FrameInfo frame;
 
+	
 	while (!glfwWindowShouldClose(wnd))
 	{
 		glClearColor(0.f, 0.f, 1.f, 0.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
 		//video_render.UpLoadFrame(framedata);
-		video_render.RenderFrame();
+		//video_render.RenderFrame();
 		glfwSwapBuffers(wnd);
 		glfwPollEvents();
+		clip_reader.GetVideoFrame(frame, frameindex++);
+		//cout<<"pos"<<frameindex-1<<"---pts"<<frame.pts<< "---cost time:"<<endl;
+
+		//clip_reader.GetVideoFrame(framedata, frameindex++);
+
 		this_thread::sleep_for(chrono::milliseconds(40));
-		//clip_reader.ReadVideoFrame(framedata, frameindex++);
+		
 	}
 	
     return 0;
@@ -84,7 +92,7 @@ bool InitClipReader(const string& filename)
 	  return false;
   }
 
-  FrameDataParam param;
+  ReaderParam param;
   param.m_width = wnd_width;
   param.m_height = wnd_height;
   param.m_type = MetaDataType::kVideo;

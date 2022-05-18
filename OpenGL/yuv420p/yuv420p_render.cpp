@@ -82,7 +82,7 @@ bool Yuv420pRender::InitShader()
 	};
 
 
-	float vertx_index_data[] = {
+	uint32_t vertx_index_data[] = {
 		0, 1, 2,
 		2, 3, 0
 	};
@@ -106,7 +106,7 @@ bool Yuv420pRender::InitShader()
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3*sizeof(float)));
 	glEnableVertexAttribArray(1);
 
-	glBindVertexArray(m_vertex_array);
+	glBindVertexArray(0);
 
 	return true;
 }

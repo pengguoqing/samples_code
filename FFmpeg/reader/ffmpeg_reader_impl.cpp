@@ -17,7 +17,7 @@ FFmpegReader::CEXFFmpegReader::CEXFFmpegReader()
     memset(&m_vdecode, 0, sizeof(mp_decode));
     memset(&m_adecode, 0, sizeof(mp_decode));
     memset(&m_mediainfo,    0, sizeof(media_params));
-    memset(&m_dst_frameinfo, 0, sizeof(FrameDataParam));
+    memset(&m_dst_frameinfo, 0, sizeof(ReaderParam));
 }
 
 FFmpegReader::CEXFFmpegReader::~CEXFFmpegReader()
@@ -75,9 +75,9 @@ bool FFmpegReader::CEXFFmpegReader::InitAVFmt(const std::string& filename)
     
 }
 
-bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& dataparams)
+bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const ReaderParam& dataparams)
 {
-    memcpy(&m_dst_frameinfo, &dataparams, sizeof(FrameDataParam));
+    memcpy(&m_dst_frameinfo, &dataparams, sizeof(dataparams));
     m_vdecode.m_need = m_dst_frameinfo.m_type == MetaDataType::kVideo;
     m_adecode.m_need = m_dst_frameinfo.m_type == MetaDataType::kAudio;
     if (m_vdecode.m_need)
@@ -137,7 +137,7 @@ bool FFmpegReader::CEXFFmpegReader::SetFrameParam(const FrameDataParam& datapara
     }
 }
 
-int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedata, int frameindex)
+int FFmpegReader::CEXFFmpegReader::GetVideoFrame(FrameInfo& frame, int frameindex)
 {
     if (frameindex > m_mediainfo.m_nb_frames || frameindex < 0)
     {
@@ -145,31 +145,38 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(std::vector<uint8_t*>& framedat
     }
 
     std::map<int, AVFrame*>::iterator search;
+    
     do 
     {
-		std::unique_lock<std::mutex> video_cache_lock(m_vcache_mux);
+        std::unique_lock<std::mutex> video_cache_lock(m_vcache_mux);
 		search = m_frame_cache.find(frameindex);
 		if (search != m_frame_cache.end())
 		{
             break;
 		}
 
-		{
+        if (m_maxche_size == m_frame_cache.size())
+        {
 			std::unique_lock<std::mutex> seek_lock(m_status_mux);
-            m_cur_pos = m_seek_pos = frameindex;
+			m_seek_pos = frameindex;
 			m_seek = true;
             m_cache_condi.notify_one();
-		}
-
+            std::cout << "seek pos -- " << m_seek_pos << std::endl;
+        }
+        
 		m_cache_condi.wait(video_cache_lock, [this, frameindex, &search] { return m_frame_cache.end() != (search = m_frame_cache.find(frameindex)); });
         
     } while (false);
 
-    uint8_t** arr_data = search->second->data;
-    for (int i=0; i<4; i++)
-    {
-        framedata[i] = *arr_data++;
-    }
+    AVFrame* cur_frame = search->second;
+    memcpy(frame.data, cur_frame->data, sizeof(cur_frame->data));
+    frame.pts = cur_frame->pts;
+
+	/*av_image_copy(&framedata[0], cur_frame->linesize,
+				   (const uint8_t**)(cur_frame->data), cur_frame->linesize,
+				   GetPixfmt(), cur_frame->width, cur_frame->height);*/
+
+
     return 0;
 }
 
@@ -373,14 +380,13 @@ void FFmpegReader::CEXFFmpegReader::ThreadFunc()
         {
             std::unique_lock<std::mutex> statue_lock(m_status_mux);
             if (m_seek)
-            {
-                m_seek =false;
+            {               
                 SeekFile(m_seek_pos);
             }
             if (m_reset)
             {
-                m_reset = false;
                 SeekFile(0);
+                m_reset = false;
             }
         }
         PrepareFrame();
@@ -392,14 +398,20 @@ void FFmpegReader::CEXFFmpegReader::ThreadFunc()
 
 int FFmpegReader::CEXFFmpegReader::SeekFile(int seek_pos)
 {
-    int rec = av_seek_frame(m_filefmt_ctx, 0, seek_pos, AVSEEK_FLAG_FRAME);
+    int start_ts = av_rescale(seek_pos, m_curdecode->m_stream->avg_frame_rate.num, m_curdecode->m_stream->avg_frame_rate.den);
+    //int64_t seek_target = percent * m_curdecode->m_stream->duration;
+    int64_t seek_to = (start_ts * (m_curdecode->m_stream->time_base.den)) / (m_curdecode->m_stream->time_base.num);
+    int rec = av_seek_frame(m_filefmt_ctx, m_curdecode->m_stream->index, seek_to, AVSEEK_FLAG_ANY);
     if (rec < 0)
     {
         return rec;
     }
-
+    
     FlushDecoder();
     FlushFrameCache();
+    m_cur_pos = seek_pos;
+    m_seek = false;
+    m_status_condi.notify_one();
     return 0;
 }
 
@@ -514,6 +526,7 @@ void FFmpegReader::CEXFFmpegReader::MoveFrameToCache()
     m_curdecode->m_frame_ready = false;
     AVFrame* useframe = av_frame_alloc();
     AVFrame* deframe = m_curdecode->m_decode_frame;
+    std::cout<<"pts:"<<deframe->pts<<std::endl;
     if (m_sws)
     {
         AVPixelFormat dst_pixfmt = GetPixfmt();
@@ -523,6 +536,8 @@ void FFmpegReader::CEXFFmpegReader::MoveFrameToCache()
                   useframe->data, useframe->linesize);
 
         useframe->pts = deframe->pts;
+        useframe->width = m_dst_frameinfo.m_width;
+        useframe->height = m_dst_frameinfo.m_height;
         av_frame_unref(deframe);
     }
     else if (m_swr)
@@ -581,10 +596,10 @@ FFmpegReader::~FFmpegReader() {}
 bool FFmpegReader::InitAVFmt(const std::string& filename) {return m_impl_reader->InitAVFmt(filename);}
 MediaInfo FFmpegReader::GetMediaInfo() {return m_impl_reader->GetMediaInfo();}
 
-bool FFmpegReader::SetFrameParam(const FrameDataParam& dataparams)
+bool FFmpegReader::SetFrameParam(const ReaderParam& params)
 {
-    return m_impl_reader->SetFrameParam(dataparams);
+    return m_impl_reader->SetFrameParam(params);
 }
 
-int  FFmpegReader::ReadVideoFrame(std::vector<uint8_t*>& framedata, int frameindex) {return m_impl_reader->GetVideoFrame(framedata, frameindex);};
+int  FFmpegReader::GetVideoFrame(FrameInfo& frame, int frameindex) {return m_impl_reader->GetVideoFrame(frame, frameindex);};
 void FFmpegReader::Reset() {return m_impl_reader->Reset();}
