@@ -100,8 +100,7 @@ private:
 	bool             m_seek;
 	bool			 m_reset;
 
-	bool			 m_raw_data;
-
+	int64_t          m_seek_pts;
 private:
 	std::thread m_prepare_th;
 };

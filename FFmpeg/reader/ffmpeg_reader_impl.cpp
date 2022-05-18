@@ -5,14 +5,14 @@ FFmpegReader::CEXFFmpegReader::CEXFFmpegReader()
     :m_exit(false),
      m_cur_pos(0),
      m_seek_pos(0),
-     m_maxche_size(10),
+     m_maxche_size(50),
      m_seek(false),
      m_reset(false),
-     m_raw_data(false),
      m_eof(false),
      m_curdecode(nullptr),
      m_sws(false),
-     m_swr(false)
+     m_swr(false),
+     m_seek_pts(0)
 {
     memset(&m_vdecode, 0, sizeof(mp_decode));
     memset(&m_adecode, 0, sizeof(mp_decode));
@@ -164,19 +164,13 @@ int FFmpegReader::CEXFFmpegReader::GetVideoFrame(FrameInfo& frame, int frameinde
             std::cout << "seek pos -- " << m_seek_pos << std::endl;
         }
         
-		m_cache_condi.wait(video_cache_lock, [this, frameindex, &search] { return m_frame_cache.end() != (search = m_frame_cache.find(frameindex)); });
+		m_cache_condi.wait(video_cache_lock, [this,&search, frameindex] { return !m_seek && (search = m_frame_cache.find(frameindex)) != m_frame_cache.end(); });
         
     } while (false);
 
     AVFrame* cur_frame = search->second;
     memcpy(frame.data, cur_frame->data, sizeof(cur_frame->data));
     frame.pts = cur_frame->pts;
-
-	/*av_image_copy(&framedata[0], cur_frame->linesize,
-				   (const uint8_t**)(cur_frame->data), cur_frame->linesize,
-				   GetPixfmt(), cur_frame->width, cur_frame->height);*/
-
-
     return 0;
 }
 
@@ -398,10 +392,11 @@ void FFmpegReader::CEXFFmpegReader::ThreadFunc()
 
 int FFmpegReader::CEXFFmpegReader::SeekFile(int seek_pos)
 {
-    int start_ts = av_rescale(seek_pos, m_curdecode->m_stream->avg_frame_rate.num, m_curdecode->m_stream->avg_frame_rate.den);
-    //int64_t seek_target = percent * m_curdecode->m_stream->duration;
-    int64_t seek_to = (start_ts * (m_curdecode->m_stream->time_base.den)) / (m_curdecode->m_stream->time_base.num);
-    int rec = av_seek_frame(m_filefmt_ctx, m_curdecode->m_stream->index, seek_to, AVSEEK_FLAG_ANY);
+    float seek_percent = seek_pos/static_cast<float>(m_mediainfo.m_nb_frames);
+    int64_t seek_to = seek_percent * m_filefmt_ctx->duration; 
+    AVRational time_base ={ 1, AV_TIME_BASE};
+	m_seek_pts = av_rescale_q(seek_to, time_base, m_curdecode->m_stream->time_base);
+    int rec = av_seek_frame(m_filefmt_ctx, m_curdecode->m_stream->index, m_seek_pts, AVSEEK_FLAG_BACKWARD);
     if (rec < 0)
     {
         return rec;
@@ -518,14 +513,20 @@ bool FFmpegReader::CEXFFmpegReader::CheckContinueDecode()
 
 void FFmpegReader::CEXFFmpegReader::MoveFrameToCache()
 {
-    if (!m_curdecode->m_frame_ready)
+    if (!m_curdecode->m_frame_ready )
     {
         return ;
     }
 
     m_curdecode->m_frame_ready = false;
-    AVFrame* useframe = av_frame_alloc();
     AVFrame* deframe = m_curdecode->m_decode_frame;
+    if (deframe->pts < m_seek_pts)
+    {
+        av_frame_unref(deframe);
+        return;
+    }
+
+    AVFrame* useframe = av_frame_alloc();
     std::cout<<"pts:"<<deframe->pts<<std::endl;
     if (m_sws)
     {

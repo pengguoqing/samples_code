@@ -11,7 +11,7 @@ public:
 	~Yuv420pRender();
 
 	bool InitRender(int frame_w, int frame_h);
-	bool UpLoadFrame(const std::vector<uint8_t*>& frame_data);
+	bool UpLoadFrame(uint8_t* y, uint8_t* u, uint8_t* v);
 	void RenderFrame();
 
 private:
