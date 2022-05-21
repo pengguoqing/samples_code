@@ -423,11 +423,13 @@ int FFmpegReader::CEXFFmpegReader::ReadNextPacket()
 	{
 		if (m_vdecode.m_need && m_mediainfo.m_hasvideo && read_pkt.stream_index == m_vdecode.m_stream->index)
 		{
+            av_packet_unref(m_vdecode.m_read_pkt);
             av_packet_move_ref(m_vdecode.m_read_pkt, &read_pkt);
             m_vdecode.m_packet_ready = true;
 		}
 		else if (m_adecode.m_need && m_mediainfo.m_hasaudio && read_pkt.stream_index == m_adecode.m_stream->index)
 		{
+            av_packet_unref(m_adecode.m_read_pkt);
             av_packet_move_ref(m_adecode.m_read_pkt, &read_pkt);
             m_adecode.m_packet_ready = true;
 		}
