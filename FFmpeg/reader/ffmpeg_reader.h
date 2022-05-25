@@ -21,16 +21,22 @@ typedef struct media_params
 {
 	uint64_t  m_nb_frames;
 	int		  m_pixfmt;
-	char	  m_pixfmt_name[9];
+	char	  m_pixfmt_name[100];
 	int		  m_width;
 	int		  m_height;
 	int		  m_gop_size;
+	char      m_vcodec_name[100];
+
 	uint64_t  m_samplerate;
 	int       m_samplefmt;
-	char      m_samplefmt_name[9];
+	char      m_samplefmt_name[100];
 	int       m_audio_depth;
+	char      m_acodec_name[100];
+
 	bool	  m_hasvideo;
 	bool      m_hasaudio;
+	int64_t   m_total_sec;
+
 }MediaInfo;
 
 

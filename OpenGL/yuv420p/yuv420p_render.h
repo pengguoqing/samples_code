@@ -3,6 +3,7 @@
 #include "GLFW/glfw3.h"
 #include "shader_parse.hpp"
 #include <vector>
+#include <memory>
 
 class Yuv420pRender
 {

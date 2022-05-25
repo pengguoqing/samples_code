@@ -267,8 +267,8 @@ void FFmpegReader::CEXFFmpegReader::ParaseMediaInfo()
     m_mediainfo.m_height = m_vdecode.m_stream->codecpar->height;
     m_mediainfo.m_pixfmt = m_vdecode.m_decode_ctx->pix_fmt;
     strcpy_s(m_mediainfo.m_pixfmt_name, av_get_pix_fmt_name(static_cast<AVPixelFormat>(m_mediainfo.m_pixfmt)));
-    m_mediainfo.m_nb_frames = m_vdecode.m_stream->nb_frames;
     m_mediainfo.m_gop_size = std::max(m_vdecode.m_decode_ctx->gop_size, 1);
+    m_mediainfo.m_nb_frames = m_vdecode.m_stream->nb_frames;
     if (0 == m_mediainfo.m_nb_frames)
     {
         int64_t duration_second = m_vdecode.m_stream->duration * av_q2d(m_vdecode.m_stream->time_base);
@@ -279,6 +279,12 @@ void FFmpegReader::CEXFFmpegReader::ParaseMediaInfo()
     m_mediainfo.m_audio_depth = m_adecode.m_stream->codecpar->bits_per_coded_sample;
     m_mediainfo.m_samplefmt = m_adecode.m_decode_ctx->sample_fmt;
     strcpy_s(m_mediainfo.m_samplefmt_name, av_get_sample_fmt_name(m_adecode.m_decode_ctx->sample_fmt));
+    
+    strcpy_s(m_mediainfo.m_vcodec_name, m_vdecode.m_codec->long_name);
+    strcpy_s(m_mediainfo.m_acodec_name, m_adecode.m_codec->long_name);
+
+    m_mediainfo.m_total_sec = m_filefmt_ctx->duration/AV_TIME_BASE;
+    
     return;
 }
 
