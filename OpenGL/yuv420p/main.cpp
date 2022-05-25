@@ -20,8 +20,10 @@ int main(int agrc, char* argv[])
 {
 	
 	glfwInit();
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	GLFWwindow* wnd = glfwCreateWindow(wnd_width, wnd_height, "Yuv420pRender", nullptr, nullptr);
 	if (nullptr == wnd)
@@ -33,47 +35,38 @@ int main(int agrc, char* argv[])
 	glfwMakeContextCurrent(wnd);
 	glfwSetFramebufferSizeCallback(wnd, window_size_callback);
 	glfwSetInputMode(wnd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
+	
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 	{
 		return -1;
 	}
-
+	
 	if (!InitClipReader(argv[1]) || !InitGLRender())
 	{
 		return -1;
 	}
 
 	int frameindex = 0;
-	//vector<uint8_t*> framedata(4);
-	//framedata[0] = new uint8_t[wnd_width * wnd_height]();
-	//memset(framedata[0],0, wnd_width * wnd_height);
-
-	//framedata[1] = new uint8_t[wnd_width * wnd_height /4]();
-	//memset(framedata[1], 0, wnd_width * wnd_height /4);
-
-	//framedata[2] = new uint8_t[wnd_width * wnd_height / 4]();
-	//memset(framedata[2], 0, wnd_width * wnd_height / 4);
+	
 	FrameInfo frame;
 	clip_reader.GetVideoFrame(frame, frameindex++);
+	
 	while (!glfwWindowShouldClose(wnd))
 	{
-		glClearColor(0.f, 0.f, 1.f, 0.f);
+		glClearColor(0.f, 0.f, 0.4f, 0.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
 		video_render.UpLoadFrame(frame.data[0], frame.data[1], frame.data[2]);
 		video_render.RenderFrame();
+		
 		glfwSwapBuffers(wnd);
 		glfwPollEvents();
 		clip_reader.GetVideoFrame(frame, frameindex++);
-		//cout<<"pos"<<frameindex-1<<"---pts"<<frame.pts<< "---cost time:"<<endl;
-
-		//clip_reader.GetVideoFrame(framedata, frameindex++);
 
 		this_thread::sleep_for(chrono::milliseconds(40));
 		
 	}
-	
+
     return 0;
 }
 
@@ -90,6 +83,8 @@ bool InitClipReader(const string& filename)
   {
 	  return false;
   }
+
+  media_params media_info = clip_reader.GetMediaInfo();
 
   ReaderParam param;
   param.m_width = wnd_width;
