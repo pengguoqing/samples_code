@@ -20,6 +20,9 @@ Yuv420pRender::~Yuv420pRender()
 	glDeleteVertexArrays(1, &m_vertex_array);
 	glDeleteBuffers(1, &m_vertex_buffer);
 	glDeleteBuffers(1, &m_index_buffer);
+	glDeleteTextures(1, &m_tex_y);
+	glDeleteTextures(1, &m_tex_u);
+	glDeleteTextures(1, &m_tex_v);
 	glfwTerminate();
 }
 
@@ -128,7 +131,7 @@ bool Yuv420pRender::CreateTexture()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width, m_wnd_height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width, m_tex_height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	m_shader_parse.setInt("tex_y", 0);
 
@@ -139,7 +142,7 @@ bool Yuv420pRender::CreateTexture()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width/2, m_wnd_height/2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width/2, m_tex_height/2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	m_shader_parse.setInt("tex_v", 1);
 
@@ -150,7 +153,7 @@ bool Yuv420pRender::CreateTexture()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width/2, m_wnd_height/2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width/2, m_tex_height/2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	m_shader_parse.setInt("tex_v", 2);
 
