@@ -4,6 +4,8 @@ out vec4 frage_color;
 
 in vec2 tex_uv;
 uniform sampler2D tex_yuyv;
+vec3 yuv0;
+vec3 yuv1;
 
 void main()
 {
@@ -16,23 +18,24 @@ void main()
 	vec4 yuyv = vec4(0.f);
 
 	ivec2 texture_size = textureSize(tex_yuyv, 0);
-	int pos_x = int(texture_size.x * tex_coord.x);
-    
-	//因为是YUYV排列, 所以采样第 1, 3, 5, 7...时需要采样前一个像素位置
+	int pos_x = int(gl_FragCoord.x * texture_size.x * 2.0f);
+   
 	if (0 == mod(pos_x, 2.f))
 	{
-		yuyv = texture2D(tex_yuyv, vec2(tex_coord.x, tex_coord.y));
-		yuv.x = yuyv.x;
-		yuv.y = yuyv.y;
-		yuv.z = yuyv.w;
+		yuyv = texture2D(tex_yuyv, tex_coord);
+		yuv0.x = yuyv.x;
+		yuv0.y = yuyv.y;
+		yuv0.z = yuyv.w;
+
+		yuv1.x = yuyv.z;
+		yuv1.y = yuyv.y;
+		yuv1.z = yuyv.w;
+
+		yuv = yuv0;
 	}
 	else
 	{
-		tex_coord.x -= 1.f/ texture_size.x;
-		yuyv = texture2D(tex_yuyv, vec2(tex_coord.x, tex_coord.y));
-		yuv.x = yuyv.z;
-		yuv.y = yuyv.y;
-		yuv.z = yuyv.w;
+	    yuv = yuv1;	
 	}
 
 	yuv.x -= 16.f / 235.f;
