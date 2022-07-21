@@ -1,5 +1,13 @@
 #include "yuv420p_render.h"
 
+
+static const glm::vec4 color_vec0(1.16438353f, 0.00000000f,  1.79274106f, -0.972945154f);
+static const glm::vec4 color_vec1(1.16438353f, -0.213248610f, -0.532909334f, 0.301482677f);
+static const glm::vec4 color_vec2(1.16438353f, 2.11240172f,  0.f, -1.13340223f);
+
+static const glm::vec3 color_range_min(0.0627451017f, 0.0627451017f, 0.0627451017f);
+static const glm::vec3 color_range_max(0.921568632f, 0.941176474f, 0.941176474f);
+
 Yuv420pRender::Yuv420pRender()
 	:m_wnd_width(1280),
 	 m_wnd_height(720),
@@ -42,6 +50,16 @@ bool Yuv420pRender::InitRender(int frame_w, int frame_h)
 	}
 
 	m_shader_parse.use();
+	m_shader_parse.setVec3("color_range_min", color_range_min);
+	GLenum errorcode = glGetError();
+	m_shader_parse.setVec3("color_range_max", color_range_max);
+	errorcode = glGetError();
+	m_shader_parse.setVec4("color_vec0", color_vec0);
+	errorcode = glGetError();
+	m_shader_parse.setVec4("color_vec1", color_vec1);
+	errorcode = glGetError();
+	m_shader_parse.setVec4("color_vec2", color_vec2);
+	errorcode = glGetError();
 	glBindVertexArray(m_vertex_array);
 	
 	return true;
@@ -78,13 +96,13 @@ void Yuv420pRender::RenderFrame()
 	glBindTexture(GL_TEXTURE_2D, m_tex_v);
 	
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
 	return ;
 }
 
 bool Yuv420pRender::InitShader()
 {
-	m_shader_parse.InitShader("vertex.shader", "fragment.shader");
+	m_shader_parse.InitShader("vertex.shader", "I420.fs");
+
 
 	float vertex_coord_data[] = {
 		-1.f, -1.f, 0.f,   0.f, 1.f,
@@ -134,6 +152,7 @@ bool Yuv420pRender::CreateTexture()
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, m_tex_width, m_tex_height, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
 	glGenerateMipmap(GL_TEXTURE_2D);
 	m_shader_parse.setInt("tex_y", 0);
+	
 
 	glGenTextures(1, &m_tex_u);
 	glBindTexture(GL_TEXTURE_2D, m_tex_u);

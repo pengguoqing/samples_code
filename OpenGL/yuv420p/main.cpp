@@ -1,6 +1,6 @@
 #include "yuv420p_render.h"
 #include "ffmpeg_reader.h"
-//#include "EXWinClock.h"
+
 #include <thread>
 #include <chrono>
 #include <string>
@@ -18,7 +18,6 @@ bool InitGLRender();
 
 int main(int agrc, char* argv[])
 {
-	
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
