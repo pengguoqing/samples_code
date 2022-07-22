@@ -1,5 +1,13 @@
 #include "yuv422_render.h"
 
+
+static const glm::vec4 color_vec0(1.16438353f, 0.00000000f, 1.79274106f, -0.972945154f);
+static const glm::vec4 color_vec1(1.16438353f, -0.213248610f, -0.532909334f, 0.301482677f);
+static const glm::vec4 color_vec2(1.16438353f, 2.11240172f, 0.f, -1.13340223f);
+
+static const glm::vec3 color_range_min(0.0627451017f, 0.0627451017f, 0.0627451017f);
+static const glm::vec3 color_range_max(0.921568632f, 0.941176474f, 0.941176474f);
+
 YUV422Render::YUV422Render()
     :m_tex_yuyv(-1),
      m_index_buffer(-1),
@@ -35,6 +43,18 @@ bool YUV422Render::InitRender(int frame_w, int frame_h)
 	}
 
 	m_shader_parse.use();
+
+	m_shader_parse.setVec3("color_range_min", color_range_min);
+	GLenum errorcode = glGetError();
+	m_shader_parse.setVec3("color_range_max", color_range_max);
+	errorcode = glGetError();
+	m_shader_parse.setVec4("color_vec0", color_vec0);
+	errorcode = glGetError();
+	m_shader_parse.setVec4("color_vec1", color_vec1);
+	errorcode = glGetError();
+	m_shader_parse.setVec4("color_vec2", color_vec2);
+	errorcode = glGetError();
+
 	glBindVertexArray(m_vertex_array);
 
 	return true;
@@ -64,7 +84,7 @@ void YUV422Render::RenderFrame()
 
 bool YUV422Render::InitShader()
 {
-	m_shader_parse.InitShader("yuyv_vertex.shader", "yuyv_fragment.shader");
+	m_shader_parse.InitShader("I422.vs", "I422.fs");
 
 	float vertex_coord_data[] = {
 		-1.f, -1.f, 0.f,   0.f, 1.f,
