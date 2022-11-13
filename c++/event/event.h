@@ -61,11 +61,11 @@ private:
 	};
 
 private:
-	const std::unique_ptr<EventImpl> m_event;
+	const std::shared_ptr<EventImpl> m_event;
 };
 
 CXEvent::CXEvent(Mode mode, bool initstate)
-	:m_event(std::make_unique<EventImpl>(mode, initstate))
+	:m_event(std::make_shared<EventImpl>(mode, initstate))
 {}
 
 void CXEvent::SetEvent() const
