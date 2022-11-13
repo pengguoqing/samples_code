@@ -7,8 +7,8 @@
 
 
 
-#ifndef	_cplusplus_event_h
-#define	_cplusplus_event_h 
+#ifndef	_cplusplus_event_h_
+#define	_cplusplus_event_h_ 
 #include <mutex>
 #include <chrono>
 
