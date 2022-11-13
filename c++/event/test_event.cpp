@@ -1,4 +1,4 @@
-// test_event.cpp : This file contains the 'main' function. Program execution begins and ends there.
+// Event.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
 #include <iostream>
@@ -11,7 +11,7 @@ using namespace std;
 static CXEvent kEvent;
 static constexpr int testCnt = 3;
 
-void TestEventFunc1()
+void TestEventFunc1(const CXEvent& refEvent)
 {
     for (int i=0; i< testCnt; i++)
     {
@@ -33,7 +33,7 @@ void TestEventFunc1()
     }
 
 }
-void TestEventFunc2()
+void TestEventFunc2(const CXEvent& refEvent)
 {
 	for (int i=0; i<testCnt; i++)
 	{
@@ -56,8 +56,10 @@ void TestEventFunc2()
 
 int main()
 {
-    std::thread testTh1(TestEventFunc1);
-    std::thread testTh2(TestEventFunc2);
+	CXEvent refEvent1(kEvent);
+	CXEvent refEvent2(kEvent);
+    std::thread testTh1(TestEventFunc1, refEvent1);
+    std::thread testTh2(TestEventFunc2, refEvent2);
 
 	int cinCnt{0};
 	char inputCmd {'R'};
