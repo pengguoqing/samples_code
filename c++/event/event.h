@@ -42,6 +42,8 @@ public:
 	template <typename Rep, typename Period>
 	inline bool tryWait(const std::chrono::duration<Rep, Period>& duratio) const;
 
+	//检查当前线程是否有信号, 只观察不改变任何状态
+	inline bool isSignal()const;
 private:
 	struct EventImpl
 	{
@@ -50,7 +52,6 @@ private:
 		inline void  Set();
 		inline void  Reset();
 		inline void  Wait();
-
 		template <typename Rep, typename Period>
 		inline bool Wait_for(const std::chrono::duration<Rep, Period>& duration);
 
@@ -87,6 +88,12 @@ template <typename Rep, typename Period>
 bool CXEvent::tryWait(const std::chrono::duration<Rep, Period>& duratio) const
 {
 	return m_event->Wait_for(duratio);
+}
+
+bool CXEvent::isSignal()const
+{
+	std::unique_lock<std::mutex> r_lock(m_event->m_mutex);
+	return m_event->m_signal;
 }
 
 CXEvent::EventImpl::EventImpl(Mode mode, bool initState)
@@ -126,6 +133,7 @@ void CXEvent::EventImpl::Wait()
 
 	return;
 }
+
 void CXEvent::EventImpl::Reset()
 {
 	std::unique_lock<std::mutex> w_lock(m_mutex);
