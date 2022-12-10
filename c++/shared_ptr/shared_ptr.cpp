@@ -75,6 +75,11 @@ int main()
     CEXSharedPtr<int> ptr4(ptr3);
     std::cout << "ptr4" << "count: " << ptr4.Count() << "  data: " << *ptr4 << std::endl;
 
+    CEXSharedPtr<int> ptr5;
+    ptr5 = ptr3;
+    std::cout << "ptr5" << "count: " << ptr5.Count() << "  data: " << *ptr5 << std::endl;
+
+    ptr5 = std::move(ptr);
     CEXSharedPtr<CXSuper> superPtr(new CXSub);
     CEXSharedPtr<CXSub> subPtr(superPtr.Cast<CXSub>());
 

@@ -97,11 +97,9 @@ public:
 
 	CEXSharedPtr& operator = (CEXSharedPtr&& another) noexcept
 	{
-		Release();
-		m_data = another.m_data;
-		m_ref  = another.m_ref;
-        
-		another.m_data = another.m_ref = nullptr;
+		Swap(another);
+		another.Reset();
+        return *this;
 	}
 
 	T* Get() const noexcept
@@ -158,7 +156,7 @@ public:
 	
 	CEXSharedPtr& Assign(const CEXSharedPtr& another)
 	{
-		if (&another != Get())
+		if (&another != this)
 		{
 			CEXSharedPtr tmp(another);
 			Swap(tmp);
@@ -210,7 +208,8 @@ private:
 	void Swap(CEXSharedPtr& another) noexcept
 	{
 		std::swap(this->m_data, another.m_data);
-		std::swap(this->m_ref, another.m_ref);
+		std::swap(this->m_ref,  another.m_ref);
+		std::swap(this->m_deleter, another.m_deleter);
 	}
 
 
