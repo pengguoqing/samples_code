@@ -80,7 +80,7 @@ public:
 		return --m_count;
 	}
 
-	void Duplicate()
+	void AddRef()
 	{
 		m_count++;
 	}

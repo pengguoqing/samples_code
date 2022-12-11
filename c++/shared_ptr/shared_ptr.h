@@ -44,7 +44,7 @@ public:
 		  m_data(ptr),
 		  m_deleter(Destutct())
 	{
-		if (m_ref) m_ref->Duplicate();
+		if (m_ref) m_ref->AddRef();
 	}
 
 	//注册类似 lambda表达式 的仿函数析构器
@@ -68,7 +68,7 @@ public:
 			 m_ref(another.m_ref),
 			 m_deleter(another.m_deleter)
 	{
-		     if (m_ref) m_ref->Duplicate();
+		     if (m_ref) m_ref->AddRef();
 	}
 
 	inline CEXSharedPtr(CEXSharedPtr&& another) noexcept
