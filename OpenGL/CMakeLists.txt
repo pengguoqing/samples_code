@@ -1,0 +1,57 @@
+cmake_minimum_required (VERSION 3.0)
+cmake_policy(VERSION 3.0)
+
+project(GLDemo)
+
+set(CMAKE_CXX_STANDARD 17) 
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
+include_directories(${CMAKE_SOURCE_DIR}/include)
+link_directories(${CMAKE_SOURCE_DIR}/lib)
+
+set(demos
+    fbo
+
+   )
+
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+add_library(GLAD ${CMAKE_SOURCE_DIR}/src/glad.c)
+set(LIBS ${LIBS} GLAD)  
+add_library(STBIMG ${CMAKE_SOURCE_DIR}/src/stb_image.cpp)
+set(LIBS ${LIBS} STBIMG)
+message(${LIBS})
+
+function(CreateProjectFromSubDir demo)
+    message(${demo})
+
+    file(GLOB SOURCE
+        "${CMAKE_SOURCE_DIR}/src/${demo}/*.h"
+        "${CMAKE_SOURCE_DIR}/src/${demo}/*.cpp"
+        "${CMAKE_SOURCE_DIR}/src/${demo}/*.vs"
+        "${CMAKE_SOURCE_DIR}/src/${demo}/*.fs"
+        )    
+   
+    set(NAME "${demo}")
+    add_executable(${NAME} ${SOURCE})
+    target_link_libraries(${NAME} ${LIBS})
+    target_compile_options(${NAME} PRIVATE /std::c++17 /MP)
+    target_link_options(${NAME}  PUBLIC  /ignore:4099)
+    set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${demo}")
+    set_target_properties(${NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${demo}/Debug")
+    
+    #copy shader to runtime dir
+    file(GLOB SHADERS
+        "${CMAKE_SOURE_DIR}/src/${demo}/*.vs"
+        "${CMAKE_SOURE_DIR}/src/${demo}/*.fs"
+        )
+    #foreach(SHADER &{SHADERS})
+    #   add_custom_command(TARGET ${NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SHADER} $<TARGET_FILE_DIR:${NAME}>)
+    #endforeach(SHADER)
+    
+endfunction()
+
+foreach(demo ${demos})
+    CreateProjectFromSubDir(${demo})
+endforeach(demo)
+
