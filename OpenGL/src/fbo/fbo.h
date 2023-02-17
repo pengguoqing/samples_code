@@ -16,9 +16,11 @@ public:
 
 public:
     bool InitFbo(int width, int height, int msaa=0);
-    void Bind();
-    void UnBind();
-
+    void BindFbo();
+    void UnBindFbo();
+    void BindColorTexture();
+    void UnBindColorTexture();
+    
 private:
     void DeleteFboBuf();
 private:
@@ -31,7 +33,7 @@ private:
     std::unique_ptr<uint8_t[]>  m_colordata;
     std::unique_ptr<float[]>    m_depthdata;
     GLuint  m_fbo;
-    GLuint  m_tex;
+    GLuint  m_colortex;
     GLuint  m_rbo;
 };
 

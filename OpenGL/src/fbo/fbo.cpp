@@ -4,7 +4,7 @@ CXFbo::CXFbo()
 :m_width(0),
  m_height(0),
  m_fbo(0),
- m_tex(0),
+ m_colortex(0),
  m_rbo(0)
 {}
 
@@ -37,15 +37,15 @@ bool CXFbo::InitFbo(int width, int height, int msaa)
     glGenFramebuffers(1, &m_fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 
-    glGenTextures(1, &m_tex);
-    glBindTexture(GL_TEXTURE_2D, m_tex);
+    glGenTextures(1, &m_colortex);
+    glBindTexture(GL_TEXTURE_2D, m_colortex);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_tex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_colortex, 0);
 
     glGenRenderbuffers(1, &m_rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, m_rbo);
@@ -60,14 +60,25 @@ bool CXFbo::InitFbo(int width, int height, int msaa)
     return GL_FRAMEBUFFER_COMPLETE == fbostatus;
 }
 
-void CXFbo::Bind()
+
+void CXFbo::BindFbo()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
 }
 
-void CXFbo::UnBind()
+void CXFbo::UnBindFbo()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void CXFbo::BindColorTexture()
+{
+    glBindTexture(GL_TEXTURE_2D, m_colortex);
+}
+
+void CXFbo::UnBindColorTexture()
+{
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void CXFbo::DeleteFboBuf()
@@ -78,10 +89,10 @@ void CXFbo::DeleteFboBuf()
         m_fbo = 0;
     }
     
-    if(m_tex)
+    if(m_colortex)
     {       
-        glDeleteTextures(1, &m_tex);
-        m_tex = 0;
+        glDeleteTextures(1, &m_colortex);
+        m_colortex = 0;
     }   
 
     if(m_rbo)
