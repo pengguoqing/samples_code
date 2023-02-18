@@ -73,6 +73,20 @@ namespace PX_CPLUSPLUS
         //     return *this;
         // }
         
+
+		// CXRAII& operator=(const CXRAII& another)
+		// {
+		// 	CXRAII(another).Swap(*this);;
+		// 	return *this;
+		// }
+		
+		// //右值引用类型的变量是个左值
+		// CXRAII& operator=(CXRAII&& another)
+		// {
+		// 	Swap(another);
+		// 	return *this;
+		// }
+
         CXRAII& operator=(CXRAII another) noexcept
         {
             cout<<"operatro = "<<endl;
