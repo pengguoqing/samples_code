@@ -11,6 +11,8 @@ public:
     ~CXFbo();
 
     //just move, can not copy
+    CXFbo(const CXFbo& aother)   = delete;
+    CXFbo& operator = (const CXFbo& another) = delete; 
     CXFbo(CXFbo&& another);
     CXFbo& operator = (CXFbo&& another);
 
@@ -22,6 +24,7 @@ public:
     void UnBindColorTexture();
     
 private:
+    void Swap(CXFbo& another);
     void DeleteFboBuf();
 private:
 

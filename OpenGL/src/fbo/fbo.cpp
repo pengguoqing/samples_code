@@ -10,7 +10,19 @@ CXFbo::CXFbo()
 
 CXFbo::~CXFbo()
 {
+   DeleteFboBuf();
+}
 
+CXFbo::CXFbo(CXFbo &&another)
+:CXFbo()
+{
+    this->Swap(another);
+}
+
+CXFbo& CXFbo::operator=(CXFbo &&another)
+{
+    this->Swap(another);
+    return *this;
 }
 
 bool CXFbo::InitFbo(int width, int height, int msaa)
@@ -81,14 +93,15 @@ void CXFbo::UnBindColorTexture()
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+void CXFbo::Swap(CXFbo &another)
+{
+    std::swap(this->m_fbo, another.m_fbo);
+    std::swap(this->m_rbo, another.m_rbo);
+    std::swap(this->m_colortex, another.m_colortex);
+}
+
 void CXFbo::DeleteFboBuf()
 {
-    if (m_rbo)
-    {
-        glDeleteFramebuffers(1, &m_fbo);
-        m_fbo = 0;
-    }
-    
     if(m_colortex)
     {       
         glDeleteTextures(1, &m_colortex);
@@ -100,7 +113,13 @@ void CXFbo::DeleteFboBuf()
         glDeleteRenderbuffers(1, &m_rbo);
         m_rbo = 0;
     }
-
+    
+    if (m_fbo)
+    {
+        glDeleteFramebuffers(1, &m_fbo);
+        m_fbo = 0;
+    }
+    
 }
 
 

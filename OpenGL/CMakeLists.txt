@@ -10,6 +10,8 @@ set(CMAKE_CXX_EXTENSIONS ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
+set(LIBS glfw3)
+
 set(demos
     fbo
 
@@ -20,6 +22,8 @@ add_library(GLAD ${CMAKE_SOURCE_DIR}/src/glad.c)
 set(LIBS ${LIBS} GLAD)  
 add_library(STBIMG ${CMAKE_SOURCE_DIR}/src/stb_image.cpp)
 set(LIBS ${LIBS} STBIMG)
+  
+
 message(${LIBS})
 
 function(CreateProjectFromSubDir demo)
