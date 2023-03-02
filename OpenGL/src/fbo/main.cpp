@@ -1,8 +1,11 @@
 #include <iostream>
 #include <string>
+#include <array>
 #include "fbo.h"
 #include "glfw/glfw3.h"
 #include "stb_image.h"
+#include "shader_parse.hpp"
+
 
 using namespace std;
 
@@ -26,7 +29,36 @@ int main(void)
 
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
+    GLuint imgtex = CreateImgTexture("res/fbo.png");
+   
+    array<float, 20> vertexdata{
+        -1.f, -1.f, 0.f, 0.f, 0.f,
+        1.f,  1.f,  0.f, 1.f, 0.f,
+        1.f,  -1.f, 0.f, 1.f, 1.f,
+        -1.f, -1.f, 0.f, 0.f, 1.f
+    };
 
+    array<float, 6> vertexidx{
+        0, 1, 2,
+        2, 3, 0
+    };
+
+    GLuint vbo{0}, ebo{0}, vao{0};
+    glGenBuffers(1, &vbo);
+    glGenBuffers(1, &ebo);
+    glGenVertexArrays(1, &vao);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertexdata.size(), &vertexdata.front(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexidx.size(), &vertexidx.front(), GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), nullptr);
+    glEnableVertexAttribArray(0);
+    
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), reinterpret_cast<void*>(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
 
 
 

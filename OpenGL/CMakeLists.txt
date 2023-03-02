@@ -18,9 +18,9 @@ set(demos
    )
 
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-add_library(GLAD ${CMAKE_SOURCE_DIR}/src/glad.c)
+add_library(GLAD ${CMAKE_SOURCE_DIR}/src/common/glad.c)
 set(LIBS ${LIBS} GLAD)  
-add_library(STBIMG ${CMAKE_SOURCE_DIR}/src/stb_image.cpp)
+add_library(STBIMG ${CMAKE_SOURCE_DIR}/src/common/stb_image.cpp)
 set(LIBS ${LIBS} STBIMG)
   
 
