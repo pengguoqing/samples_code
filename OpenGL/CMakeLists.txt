@@ -10,12 +10,15 @@ set(CMAKE_CXX_EXTENSIONS ON)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
-set(LIBS glfw3)
+set(LIBS glfw3 yuv)
 
 set(demos
     fbo
 
    )
+
+#cur version need copy yuv lib and dll to related directory
+#add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/common/libyuv)
 
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 add_library(GLAD ${CMAKE_SOURCE_DIR}/src/common/glad.c)
@@ -41,8 +44,9 @@ function(CreateProjectFromSubDir demo)
     target_link_libraries(${NAME} ${LIBS})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
     target_link_options(${NAME}  PUBLIC  /ignore:4099)
-    set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${demo}")
-    set_target_properties(${NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${demo}/Debug")
+    set_target_properties(${NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+    set_target_properties(${NAME} PROPERTIES CMAKE_ARCHIVE_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/lib")
+    set_target_properties(${NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/Debug")
     
     #copy shader to runtime dir
     file(GLOB SHADERS

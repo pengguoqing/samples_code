@@ -6,7 +6,6 @@
 #include "stb_image.h"
 #include "shader_parse.hpp"
 
-
 using namespace std;
 
 constexpr int wndwidth{1920};
@@ -29,16 +28,16 @@ int main(void)
 
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
-    GLuint imgtex = CreateImgTexture("res/fbo.png");
+    GLuint imgtex = CreateImgTexture("../../res/fbo.jpg");
    
-    array<float, 20> vertexdata{
-        -1.f, -1.f, 0.f, 0.f, 0.f,
-        1.f,  1.f,  0.f, 1.f, 0.f,
+    array<float, 20> vertices{
+        -1.f,  1.f, 0.f, 0.f, 0.f,
+        1.f,   1.f,  0.f, 1.f, 0.f,
         1.f,  -1.f, 0.f, 1.f, 1.f,
         -1.f, -1.f, 0.f, 0.f, 1.f
     };
 
-    array<float, 6> vertexidx{
+    array<GLuint, 6> indices{
         0, 1, 2,
         2, 3, 0
     };
@@ -50,21 +49,30 @@ int main(void)
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, vertexdata.size(), &vertexdata.front(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices.front(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, vertexidx.size(), &vertexidx.front(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), &indices.front(), GL_STATIC_DRAW);
     
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), reinterpret_cast<void*>(3*sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3*sizeof(float)));
     glEnableVertexAttribArray(1);
 
-
+    ShaderParse uploadshader;
+    uploadshader.InitShader("fbo.vs", "fbo.fs");
+    uploadshader.use();
 
     while (!glfwWindowShouldClose(winhandle))
     {
         processInput(winhandle);
+		
+        //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+        uploadshader.use();
+        glBindVertexArray(vao);
+        
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glfwSwapBuffers(winhandle);
         glfwPollEvents();
     }
@@ -107,12 +115,12 @@ GLuint  CreateImgTexture(string filename)
         
         glGenTextures(1, &imgtex);
         glBindTexture(GL_TEXTURE_2D, imgtex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexImage2D(GL_TEXTURE_2D, 0, texfmt, imgwidth, imgheight, 0, texfmt, GL_UNSIGNED_BYTE, imgdata);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glGenerateMipmap(GL_TEXTURE_2D);    
     }
     
     stbi_image_free(imgdata);

@@ -15,7 +15,7 @@ public:
     ShaderParse()=default;
     ~ShaderParse()=default;
 
-    void InitShader(const char* vertexPath, const char* fragmentPath)
+    void InitShader(std::string vsfile, std::string fsfile)
     {
         // 1. retrieve the vertex/fragment source code from filePath
         std::string vertexCode;
@@ -28,8 +28,8 @@ public:
         try 
         {
             // open files
-            vShaderFile.open(vertexPath);
-            fShaderFile.open(fragmentPath);
+            vShaderFile.open(vsfile);
+            fShaderFile.open(fsfile);
             std::stringstream vShaderStream, fShaderStream;
             // read file's buffer contents into streams
             vShaderStream << vShaderFile.rdbuf();
