@@ -5,6 +5,7 @@
 #include "glfw/glfw3.h"
 #include "stb_image.h"
 #include "shader_parse.hpp"
+#include "libyuv.h"
 
 using namespace std;
 
@@ -67,7 +68,7 @@ int main(void)
     {
         processInput(winhandle);
 		
-        //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
         uploadshader.use();
         glBindVertexArray(vao);
