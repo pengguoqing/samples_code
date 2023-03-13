@@ -13,7 +13,7 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 set(LIBS glfw3 yuv)
 
 set(demos
-    fbo
+    fbo_pbo
 
    )
 
