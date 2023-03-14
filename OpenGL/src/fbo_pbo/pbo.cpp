@@ -2,12 +2,12 @@
 
 
 
-inline CXPbo::CXPbo()
+CXPbo::CXPbo()
 :m_pbo(0),
  m_width(0),
  m_hegit(0),
  m_pixfmt(0),
- m_type(0)
+ m_rwtype(0)
 {
 }
 
@@ -40,10 +40,10 @@ bool CXPbo::Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt)
    switch (type)
    {
    case PBOTYPE::kDynamic:
-        m_type = GL_PIXEL_UNPACK_BUFFER;
+        m_rwtype = GL_PIXEL_UNPACK_BUFFER;
     break;
    case PBOTYPE::kStage:
-        m_type = GL_PIXEL_PACK_BUFFER;
+        m_rwtype = GL_PIXEL_PACK_BUFFER;
     break;
    default:
         return false;
@@ -57,46 +57,40 @@ bool CXPbo::Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt)
      return false;
    }
     
-   glBindBuffer(m_type, m_pbo);
+   glBindBuffer(m_rwtype, m_pbo);
 
    GLsizeiptr size = m_width * GetPixfmtBpp(pixfmt) / 8;
    size = (size + 3) & 0xFFFFFFFC;
    size *= m_hegit;
-   glBufferData(m_type, size, nullptr, GL_DYNAMIC_DRAW); 
+   glBufferData(m_rwtype, size, nullptr, GL_DYNAMIC_DRAW); 
 
-   glBindBuffer(m_type, 0);
+   glBindBuffer(m_rwtype, 0);
 
    return false;
 }
 
 void CXPbo::Map(uint8_t **ptr, uint32_t *linesize)
 {
-    glBindBuffer(m_type, m_pbo);
+    glBindBuffer(m_rwtype, m_pbo);
 
-    GLuint access = GL_PIXEL_UNPACK_BUFFER == m_type ? GL_WRITE_ONLY : GL_READ_ONLY;
-    *ptr = static_cast<uint8_t*>( glMapBuffer(m_type, access) );
+    GLuint access = GL_PIXEL_UNPACK_BUFFER == m_rwtype ? GL_WRITE_ONLY : GL_READ_ONLY;
+    *ptr = static_cast<uint8_t*>( glMapBuffer(m_rwtype, access) );
     
-
+    *linesize = m_width * GetPixfmtBpp(m_pixfmt) / 8;
+    *linesize = (*linesize + 3) & 0xFFFFFFFC;    
 }
 
-void CXPbo::DownUnMap()
+void CXPbo::UnMap(uint32_t uploadtex)
 {
-    glBindBuffer(m_type, m_pbo);
-    glUnmapBuffer(m_type);
-    glBindBuffer(m_type, 0);
-}
-
-void CXPbo::UploadUnMap(uint32_t uploadtex)
-{
-    glBindBuffer(m_type, m_pbo);
-    glUnmapBuffer(m_type);
+    glBindBuffer(m_rwtype, m_pbo);
+    glUnmapBuffer(m_rwtype);
     if (uploadtex)
     {
         glBindTexture(GL_TEXTURE_2D, uploadtex);
         glTexImage2D(GL_TEXTURE_2D, 0, m_pixfmt, m_width, m_hegit, 0, m_pixfmt, GL_UNSIGNED_BYTE, nullptr);
     }
-    
-    glBindBuffer(m_type, 0);
+
+    glBindBuffer(m_rwtype, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
