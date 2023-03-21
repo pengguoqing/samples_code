@@ -1,11 +1,12 @@
 #include "fbo.h"
 
 CXFbo::CXFbo()
-:m_width(0),
- m_height(0),
- m_fbo(0),
- m_colortex(0),
- m_rbo(0)
+    :m_width(0),
+    m_height(0),
+    m_fbo(0),
+    m_colortex(0),
+    m_rbo(0),
+    m_msaa(0)
 {}
 
 CXFbo::~CXFbo()
@@ -13,13 +14,13 @@ CXFbo::~CXFbo()
    DeleteFboBuf();
 }
 
-CXFbo::CXFbo(CXFbo &&another)
+CXFbo::CXFbo(CXFbo &&another) noexcept
 :CXFbo()
 {
     this->Swap(another);
 }
 
-CXFbo& CXFbo::operator=(CXFbo &&another)
+CXFbo& CXFbo::operator=(CXFbo &&another) noexcept
 {
     this->Swap(another);
     return *this;

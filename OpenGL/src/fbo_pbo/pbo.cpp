@@ -19,13 +19,13 @@ CXPbo::~CXPbo()
 
 }
 
-CXPbo::CXPbo(CXPbo &&another)
+CXPbo::CXPbo(CXPbo &&another) noexcept
 :CXPbo()
 {
     this->Swap(another);
 }
 
-inline CXPbo &CXPbo::operator=(CXPbo &&another)
+inline CXPbo &CXPbo::operator=(CXPbo &&another) noexcept
 {
    this->Swap(another);
    return *this;
@@ -34,7 +34,7 @@ inline CXPbo &CXPbo::operator=(CXPbo &&another)
 bool CXPbo::Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt)
 {
    m_width  = width;
-   m_width  = height;
+   m_hegit  = height;
    m_pixfmt = pixfmt;
    
    switch (type)
@@ -69,7 +69,7 @@ bool CXPbo::Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt)
    return false;
 }
 
-void CXPbo::Map(uint8_t **ptr, uint32_t *linesize)
+void CXPbo::Map(uint8_t **ptr, uint32_t *linesize) const
 {
     glBindBuffer(m_rwtype, m_pbo);
 
@@ -80,7 +80,7 @@ void CXPbo::Map(uint8_t **ptr, uint32_t *linesize)
     *linesize = (*linesize + 3) & 0xFFFFFFFC;    
 }
 
-void CXPbo::UnMap(uint32_t uploadtex)
+void CXPbo::UnMap(uint32_t uploadtex) const
 {
     glBindBuffer(m_rwtype, m_pbo);
     glUnmapBuffer(m_rwtype);

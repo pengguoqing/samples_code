@@ -20,13 +20,13 @@ public:
     //just move, can not copy
     CXPbo(const CXPbo& another) = delete;
     CXPbo& operator=(const CXPbo& another) = delete;
-    inline CXPbo(CXPbo&& another);
-    inline CXPbo& operator=(CXPbo&& another);
+    inline CXPbo(CXPbo&& another) noexcept;
+    inline CXPbo& operator=(CXPbo&& another) noexcept;
 
 public:
     bool Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt);
-    void Map(uint8_t** ptr, uint32_t* linesize);
-    void UnMap(uint32_t uploadtex);
+    void Map(uint8_t** ptr, uint32_t* linesize) const;
+    void UnMap(uint32_t uploadtex) const;
 
 
 static uint32_t GetPixfmtBpp(GLenum pixfmt);

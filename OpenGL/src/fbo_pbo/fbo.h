@@ -7,14 +7,14 @@
 class CXFbo
 {
 public:
-    inline CXFbo();
+    CXFbo();
     ~CXFbo();
 
     //just move, can not copy
     CXFbo(const CXFbo& aother)   = delete;
     CXFbo& operator = (const CXFbo& another) = delete; 
-    inline CXFbo(CXFbo&& another);
-    inline CXFbo& operator = (CXFbo&& another);
+    inline CXFbo(CXFbo&& another) noexcept;
+    inline CXFbo& operator = (CXFbo&& another) noexcept;
 
 public:
     bool InitFbo(int width, int height, int msaa=0);
