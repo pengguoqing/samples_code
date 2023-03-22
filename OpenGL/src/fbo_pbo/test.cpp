@@ -15,8 +15,8 @@
 using namespace std;
 
 #define USE_PBO  0
-static constexpr int wndwidth{1920};
-static constexpr int wndheight{1080};
+static constexpr int wndwidth{1280};
+static constexpr int wndheight{960};
 static constexpr  uint32_t imgwidth{1280};
 static constexpr  uint32_t imgheight{960};
 
@@ -46,16 +46,16 @@ int main(void)
 
     array<float, 20> vertex{
         -1.f,  1.f, 0.f,  0.f, 0.f,
-        1.f,   1.f, 0.f, 1.f, 0.f,
+        1.f,   1.f, 0.f,  1.f, 0.f,
         1.f,  -1.f, 0.f,  1.f, 1.f,
         -1.f, -1.f, 0.f,  0.f, 1.f
     };
 
     array<GLuint, 6> indx{
         0, 1, 2,
-        2, 3, 0
+        0, 3, 2
     };
-
+   
     //upload vao
     GLuint vbo{0}, ebo{0}, uploadvao{0};
     glGenBuffers(1, &vbo);
@@ -73,19 +73,19 @@ int main(void)
     glBindVertexArray(0);
 
     //render vao
-    GLuint rendervbo{0}, renderebo{0}, rendervao{0};
-    glGenBuffers(1, &rendervbo);
-    glGenVertexArrays(1, &rendervao);
-    glBindVertexArray(rendervao);
-    glBindBuffer(GL_ARRAY_BUFFER, rendervbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, rendervao);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3*sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
+	GLuint rendervbo{ 0 }, renderebo{ 0 }, rendervao{ 0 };
+	glGenBuffers(1, &rendervbo);
+	glGenVertexArrays(1, &rendervao);
+	glBindVertexArray(rendervao);
+	glBindBuffer(GL_ARRAY_BUFFER, rendervbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, renderebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+	glBindVertexArray(0);
 
     //Init upload and render shader
     ShaderParse uploadshader;
@@ -93,7 +93,12 @@ int main(void)
     uploadshader.use();
     uploadshader.setInt("image", 0);
     uploadshader.setFloat("width_offset", 0.5f / imgwidth);
-    
+    uploadshader.setVec3("color_range_min", color_range_min);
+    uploadshader.setVec3("color_range_max", color_range_max);
+    uploadshader.setVec4("color_vec0",      color_vec0);
+    uploadshader.setVec4("color_vec1",      color_vec1);
+    uploadshader.setVec4("color_vec2",      color_vec2);
+
     //ShaderParse rendershader;
     //rendershader.InitShader("../render.vs", "../render.fs");
     //rendershader.use();
@@ -102,18 +107,26 @@ int main(void)
     //read binary yuyv data
     ifstream yuyvfile {"../../../res/fbo.yuyv", ios::binary|ios::in};
     std::vector<uint8_t> imgdata{ std::istreambuf_iterator<char>(yuyvfile), {}};
-    
-    CXPbo yuy2pbo;
-    yuy2pbo.Init(imgwidth/2, imgheight, PBOTYPE::kDynamic, GL_RGBA);
+    int w{ 0 }, h{ 0 }, ch{ 0 };
+    uint8_t* data = stbi_load("../../../res/fbo.jpg", &w, &h, &ch, 0);
+
+	GLuint uploadtex;
+	glGenTextures(1, &uploadtex);
+	glBindTexture(GL_TEXTURE_2D, uploadtex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgwidth/2, imgheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    //CXPbo yuy2pbo;
+    //yuy2pbo.Init(imgwidth/2, imgheight, PBOTYPE::kDynamic, GL_RGBA);
     
    /* CXFbo yuy2fbo;
     yuy2fbo.InitFbo(imgwidth, imgheight);*/
 
-    GLuint uploadtex;
-    glGenTextures(1, &uploadtex);
-    glBindTexture(GL_TEXTURE_2D, uploadtex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, imgwidth/2, imgheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glBindTexture(GL_TEXTURE_2D, 0);
+	//uploadshader.use();
+    //uploadshader.setInt("image", 0);
 
     while (!glfwWindowShouldClose(winhandle))
     {
@@ -121,23 +134,13 @@ int main(void)
 		
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-        //yuy2fbo.BindFbo();
-        uploadshader.use();
-        glBindVertexArray(uploadvao);
-        //glBindTexture(GL_TEXTURE_2D, uploadtex);
-        //UploadYUYV(yuy2pbo, imgdata, uploadtex);
-        
-        //glBindTexture(GL_TEXTURE_2D, uploadtex);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        //yuy2fbo.UnBindFbo();
 
-        /*rendershader.use();
-        glBindVertexArray(rendervao);
-        rendershader.use();
-        yuy2fbo.BindColorTexture();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, uploadtex);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgwidth / 2, imgheight, GL_RGBA, GL_UNSIGNED_BYTE, &imgdata.front());
+		uploadshader.use();
+		glBindVertexArray(uploadvao);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        yuy2fbo.UnBindColorTexture();*/
-
         glfwSwapBuffers(winhandle);
         glfwPollEvents();
     }
