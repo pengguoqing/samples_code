@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <chrono>
+#include <thread>
 #include "fbo.h"
 #include "pbo.h"
 #include "glfw/glfw3.h"
@@ -14,9 +15,9 @@
 
 using namespace std;
 
-#define USE_PBO  0
-static constexpr int wndwidth{1280};
-static constexpr int wndheight{960};
+#define USE_PBO  true
+static constexpr int wndwidth{960};
+static constexpr int wndheight{540};
 static constexpr  uint32_t imgwidth{1280};
 static constexpr  uint32_t imgheight{960};
 
@@ -45,10 +46,10 @@ int main(void)
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
     array<float, 20> vertex{
-        -1.f,  1.f, 0.f,  0.f, 0.f,
-        1.f,   1.f, 0.f,  1.f, 0.f,
-        1.f,  -1.f, 0.f,  1.f, 1.f,
-        -1.f, -1.f, 0.f,  0.f, 1.f
+        -1.f,  1.f, 0.f,  0.f, 1.f,
+        1.f,   1.f, 0.f,  1.f, 1.f,
+        1.f,  -1.f, 0.f,  1.f, 0.f,
+        -1.f, -1.f, 0.f,  0.f, 0.f
     };
 
     array<GLuint, 6> indx{
@@ -75,12 +76,13 @@ int main(void)
     //render vao
 	GLuint rendervbo{ 0 }, renderebo{ 0 }, rendervao{ 0 };
 	glGenBuffers(1, &rendervbo);
+    glGenBuffers(1, &renderebo);
 	glGenVertexArrays(1, &rendervao);
 	glBindVertexArray(rendervao);
 	glBindBuffer(GL_ARRAY_BUFFER, rendervbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, renderebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indx), &indx.front(), GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -93,22 +95,22 @@ int main(void)
     uploadshader.use();
     uploadshader.setInt("image", 0);
     uploadshader.setFloat("width_offset", 0.5f / imgwidth);
+    uploadshader.setFloat("width_d2", imgwidth / 2);
+    uploadshader.setFloat("height",   imgheight);
     uploadshader.setVec3("color_range_min", color_range_min);
     uploadshader.setVec3("color_range_max", color_range_max);
     uploadshader.setVec4("color_vec0",      color_vec0);
     uploadshader.setVec4("color_vec1",      color_vec1);
     uploadshader.setVec4("color_vec2",      color_vec2);
 
-    //ShaderParse rendershader;
-    //rendershader.InitShader("../render.vs", "../render.fs");
-    //rendershader.use();
-    //rendershader.setInt("rendertex", 0);
+    ShaderParse rendershader;
+    rendershader.InitShader("../render.vs", "../render.fs");
+    rendershader.use();
+    rendershader.setInt("rendertex", 0);
     
     //read binary yuyv data
     ifstream yuyvfile {"../../../res/fbo.yuyv", ios::binary|ios::in};
     std::vector<uint8_t> imgdata{ std::istreambuf_iterator<char>(yuyvfile), {}};
-    int w{ 0 }, h{ 0 }, ch{ 0 };
-    uint8_t* data = stbi_load("../../../res/fbo.jpg", &w, &h, &ch, 0);
 
 	GLuint uploadtex;
 	glGenTextures(1, &uploadtex);
@@ -119,28 +121,40 @@ int main(void)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgwidth/2, imgheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
-    //CXPbo yuy2pbo;
-    //yuy2pbo.Init(imgwidth/2, imgheight, PBOTYPE::kDynamic, GL_RGBA);
+    CXPbo yuy2pbo;
+    yuy2pbo.Init(imgwidth/2, imgheight, PBOTYPE::kDynamic, GL_RGBA);
     
-   /* CXFbo yuy2fbo;
-    yuy2fbo.InitFbo(imgwidth, imgheight);*/
-
-	//uploadshader.use();
-    //uploadshader.setInt("image", 0);
+	CXFbo yuy2fbo;
+	yuy2fbo.InitFbo(imgwidth, imgheight);
+    yuy2fbo.UnBindFbo();
 
     while (!glfwWindowShouldClose(winhandle))
     {
         processInput(winhandle);
-		
+        glViewport(0, 0, imgwidth, imgheight);
+        
+        yuy2fbo.BindFbo();
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+        uploadshader.use();
+        UploadYUYV(yuy2pbo, imgdata, uploadtex);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, uploadtex);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgwidth / 2, imgheight, GL_RGBA, GL_UNSIGNED_BYTE, &imgdata.front());
-		uploadshader.use();
 		glBindVertexArray(uploadvao);
+		glBindTexture(GL_TEXTURE_2D, uploadtex);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        yuy2fbo.UnBindFbo();
+        glBindVertexArray(0);
+
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+        glViewport(0, 0, wndwidth, wndheight);
+        rendershader.use();
+        glBindVertexArray(rendervao);
+        yuy2fbo.BindColorTexture();
+        glGenerateMipmap(GL_TEXTURE_2D);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        yuy2fbo.UnBindColorTexture();
         glfwSwapBuffers(winhandle);
         glfwPollEvents();
     }
@@ -166,12 +180,15 @@ bool   UploadYUYV(const CXPbo& pbo, const vector<uint8_t>&imgdata, uint32_t uplo
     uint32_t linesizeimg = imgwidth * CXPbo::GetPixfmtBpp(GL_RGBA)/8/2;
     uint8_t* imgdataptr  = const_cast<uint8_t*>(&imgdata.front());
 
-    auto begin = chrono::high_resolution_clock::now();
 #if USE_PBO
     //use pbo to upload img
     uint8_t* dstptr{nullptr};
     uint32_t linesizeout{0};
+
+    //const auto start = std::chrono::high_resolution_clock::now();
+
     pbo.Map(&dstptr, &linesizeout);
+    cout << "ptr : " << static_cast<void*>(dstptr) << endl;
     if (linesizeout == linesizeimg){
         memcpy_s(dstptr, linesizeout*imgheight, imgdataptr, linesizeimg*imgheight);
     }
@@ -182,15 +199,16 @@ bool   UploadYUYV(const CXPbo& pbo, const vector<uint8_t>&imgdata, uint32_t uplo
             dstptr += linesizeout;
             imgdataptr += linesizeimg;
         }
-    }   
+    }  
     pbo.UnMap(uploadtex);
     
 #else
-    glBindTexture(GL_TEXTURE_2D, uploadtex);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgwidth/2, imgheight, GL_RGBA, GL_UNSIGNED_BYTE, imgdataptr);
-    glBindTexture(GL_TEXTURE_2D, 0);
 #endif
-    auto end = chrono::high_resolution_clock::now();
-    cout<<"upload time is "<< chrono::duration<double, milli>(end-begin).count() <<endl;
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+	//const auto end = std::chrono::high_resolution_clock::now();
+    //cout <<"upload time : " << std::chrono::duration<double, std::milli>(end - start).count() << endl;
+   
     return true;
 }

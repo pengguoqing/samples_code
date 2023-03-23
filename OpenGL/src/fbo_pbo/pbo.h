@@ -40,6 +40,7 @@ private:
     uint32_t m_hegit;
     uint32_t m_pixfmt;
     uint32_t m_rwtype;
+    int64_t  m_pbosize;
 };
 
 #endif

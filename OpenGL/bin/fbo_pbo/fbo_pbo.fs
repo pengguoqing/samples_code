@@ -22,11 +22,13 @@ vec3 YUV_to_RGB(vec3 yuv)
 
 vec3 SampleYUYV(vec2 pos)
 {
-	vec4 yuyv = texture(image, pos, 0);
-	vec2 size = textureSize(image,  0);
-	float leftover = fract(pos.x * size.x);
+	ivec2 size		= textureSize(image,  0);
+	ivec2 actualpos = ivec2(pos.x, pos.y);
+	vec2  actualuv	= (vec2(actualpos.xy)+0.5)/size;
+	vec4 yuyv		= textureLod(image, actualuv, 0);
 	
-	float y   = (leftover<0.3f) ? yuyv.x : yuyv.z;
+	float leftover  = fract(pos.x);
+	float y   = (leftover<0.5f) ? yuyv.x : yuyv.z;
 
     vec3 yuv = vec3(y, yuyv.yw);
 

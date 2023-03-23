@@ -1,5 +1,7 @@
 #include "pbo.h"
-
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 
 CXPbo::CXPbo()
@@ -7,7 +9,8 @@ CXPbo::CXPbo()
  m_width(0),
  m_hegit(0),
  m_pixfmt(0),
- m_rwtype(0)
+ m_rwtype(0),
+ m_pbosize(0)
 {
 }
 
@@ -59,10 +62,10 @@ bool CXPbo::Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt)
     
    glBindBuffer(m_rwtype, m_pbo);
 
-   GLsizeiptr size = m_width * GetPixfmtBpp(pixfmt) / 8;
-   size = (size + 3) & 0xFFFFFFFC;
-   size *= m_hegit;
-   glBufferData(m_rwtype, size, nullptr, GL_DYNAMIC_DRAW); 
+   m_pbosize  = m_width * GetPixfmtBpp(pixfmt) / 8;
+   m_pbosize  = (m_pbosize + 3) & 0xFFFFFFFC;
+   m_pbosize  *= m_hegit;
+   glBufferData(m_rwtype, m_pbosize, nullptr, GL_STREAM_DRAW);
 
    glBindBuffer(m_rwtype, 0);
 
@@ -74,10 +77,16 @@ void CXPbo::Map(uint8_t **ptr, uint32_t *linesize) const
     glBindBuffer(m_rwtype, m_pbo);
 
     GLuint access = GL_PIXEL_UNPACK_BUFFER == m_rwtype ? GL_WRITE_ONLY : GL_READ_ONLY;
+    
+    const auto start = std::chrono::high_resolution_clock::now();
+    //glBufferData(m_rwtype, m_pbosize, nullptr, GL_STREAM_DRAW);
     *ptr = static_cast<uint8_t*>( glMapBuffer(m_rwtype, access) );
+	const auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "upload time : " << std::chrono::duration<double, std::milli>(end - start).count() << std::endl;
     
     *linesize = m_width * GetPixfmtBpp(m_pixfmt) / 8;
-    *linesize = (*linesize + 3) & 0xFFFFFFFC;    
+    *linesize = (*linesize + 3) & 0xFFFFFFFC;   
+    glBindBuffer(m_rwtype, 0);
 }
 
 void CXPbo::UnMap(uint32_t uploadtex) const
@@ -87,11 +96,11 @@ void CXPbo::UnMap(uint32_t uploadtex) const
     if (uploadtex)
     {
         glBindTexture(GL_TEXTURE_2D, uploadtex);
-        glTexImage2D(GL_TEXTURE_2D, 0, m_pixfmt, m_width, m_hegit, 0, m_pixfmt, GL_UNSIGNED_BYTE, nullptr);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_hegit, m_pixfmt, GL_UNSIGNED_BYTE, nullptr);
+		/*glTexImage2D(GL_TEXTURE_2D, 0, m_pixfmt, m_width,
+			m_hegit, 0, m_pixfmt, GL_UNSIGNED_BYTE, nullptr);*/
     }
-
     glBindBuffer(m_rwtype, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void CXPbo::Swap(CXPbo &another)
