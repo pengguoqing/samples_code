@@ -26,8 +26,9 @@ public:
 public:
     bool Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt);
     void Map(uint8_t** ptr, uint32_t* linesize) const;
-    void UnMap(uint32_t uploadtex) const;
-
+    void UnMap() const;
+    void Bind() const;
+    void UnBind() const;
 
 static uint32_t GetPixfmtBpp(GLenum pixfmt);
 

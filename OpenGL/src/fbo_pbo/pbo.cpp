@@ -77,31 +77,29 @@ void CXPbo::Map(uint8_t **ptr, uint32_t *linesize) const
     glBindBuffer(m_rwtype, m_pbo);
 
     GLuint access = GL_PIXEL_UNPACK_BUFFER == m_rwtype ? GL_WRITE_ONLY : GL_READ_ONLY;
-    
-    const auto start = std::chrono::high_resolution_clock::now();
-    //glBufferData(m_rwtype, m_pbosize, nullptr, GL_STREAM_DRAW);
+    glBufferData(m_rwtype, m_pbosize, nullptr, GL_STREAM_DRAW);
     *ptr = static_cast<uint8_t*>( glMapBuffer(m_rwtype, access) );
-	const auto end = std::chrono::high_resolution_clock::now();
-	std::cout << "upload time : " << std::chrono::duration<double, std::milli>(end - start).count() << std::endl;
-    
+	
     *linesize = m_width * GetPixfmtBpp(m_pixfmt) / 8;
     *linesize = (*linesize + 3) & 0xFFFFFFFC;   
     glBindBuffer(m_rwtype, 0);
 }
 
-void CXPbo::UnMap(uint32_t uploadtex) const
+void CXPbo::UnMap() const
 {
     glBindBuffer(m_rwtype, m_pbo);
     glUnmapBuffer(m_rwtype);
-    if (uploadtex)
-    {
-        glBindTexture(GL_TEXTURE_2D, uploadtex);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_width, m_hegit, m_pixfmt, GL_UNSIGNED_BYTE, nullptr);
-		/*glTexImage2D(GL_TEXTURE_2D, 0, m_pixfmt, m_width,
-			m_hegit, 0, m_pixfmt, GL_UNSIGNED_BYTE, nullptr);*/
-    }
+}
+
+void CXPbo::Bind() const
+{
+    glBindBuffer(m_rwtype, m_pbo);
+}
+void CXPbo::UnBind() const
+{
     glBindBuffer(m_rwtype, 0);
 }
+
 
 void CXPbo::Swap(CXPbo &another)
 {

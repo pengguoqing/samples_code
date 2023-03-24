@@ -13,9 +13,8 @@
 #include "shader_parse.hpp"
 #include "glm/glm.hpp"
 
-using namespace std;
+#define USE_PBO  false
 
-#define USE_PBO  true
 static constexpr int wndwidth{960};
 static constexpr int wndheight{540};
 static constexpr  uint32_t imgwidth{1280};
@@ -30,7 +29,7 @@ static const glm::vec3 color_range_max(0.921568632f, 0.941176474f, 0.941176474f)
 
 void      callback_winsize(GLFWwindow* winhandle, int width, int height);
 void      processInput(GLFWwindow *window);
-bool      UploadYUYV(const CXPbo& pbo, const vector<uint8_t>&imgdata, uint32_t uploadtex);
+bool      UploadYUYV(const CXPbo& pbo, const std::vector<uint8_t>&imgdata, uint32_t uploadtex);
 
 int main(void)
 {
@@ -45,14 +44,14 @@ int main(void)
 
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 
-    array<float, 20> vertex{
+    std::array<float, 20> vertex{
         -1.f,  1.f, 0.f,  0.f, 1.f,
         1.f,   1.f, 0.f,  1.f, 1.f,
         1.f,  -1.f, 0.f,  1.f, 0.f,
         -1.f, -1.f, 0.f,  0.f, 0.f
     };
 
-    array<GLuint, 6> indx{
+    std::array<GLuint, 6> indx{
         0, 1, 2,
         0, 3, 2
     };
@@ -109,7 +108,7 @@ int main(void)
     rendershader.setInt("rendertex", 0);
     
     //read binary yuyv data
-    ifstream yuyvfile {"../../../res/fbo.yuyv", ios::binary|ios::in};
+    std::ifstream yuyvfile {"../../../res/fbo.yuyv", std::ios::binary| std::ios::in};
     std::vector<uint8_t> imgdata{ std::istreambuf_iterator<char>(yuyvfile), {}};
 
 	GLuint uploadtex;
@@ -127,7 +126,7 @@ int main(void)
 	CXFbo yuy2fbo;
 	yuy2fbo.InitFbo(imgwidth, imgheight);
     yuy2fbo.UnBindFbo();
-
+    glfwSwapInterval(0);
     while (!glfwWindowShouldClose(winhandle))
     {
         processInput(winhandle);
@@ -175,22 +174,22 @@ void processInput(GLFWwindow *window)
     }
 }
 
-bool   UploadYUYV(const CXPbo& pbo, const vector<uint8_t>&imgdata, uint32_t uploadtex)
+bool   UploadYUYV(const CXPbo& pbo, const std::vector<uint8_t>&imgdata, uint32_t uploadtex)
 {
     uint32_t linesizeimg = imgwidth * CXPbo::GetPixfmtBpp(GL_RGBA)/8/2;
     uint8_t* imgdataptr  = const_cast<uint8_t*>(&imgdata.front());
 
+    glBindTexture(GL_TEXTURE_2D, uploadtex);
 #if USE_PBO
-    //use pbo to upload img
+    //use pbo to upload image
     uint8_t* dstptr{nullptr};
     uint32_t linesizeout{0};
 
-    //const auto start = std::chrono::high_resolution_clock::now();
-
     pbo.Map(&dstptr, &linesizeout);
-    cout << "ptr : " << static_cast<void*>(dstptr) << endl;
+    std::cout << "ptr : " << static_cast<void*>(dstptr) << endl;
+
     if (linesizeout == linesizeimg){
-        memcpy_s(dstptr, linesizeout*imgheight, imgdataptr, linesizeimg*imgheight);
+        memcpy_s(dstptr, static_cast<rsize_t>(linesizeout)*imgheight, imgdataptr, static_cast<rsize_t>(linesizeimg)*imgheight);
     }
     else{
         for(size_t lines=0; lines<imgheight; lines++)
@@ -200,15 +199,20 @@ bool   UploadYUYV(const CXPbo& pbo, const vector<uint8_t>&imgdata, uint32_t uplo
             imgdataptr += linesizeimg;
         }
     }  
-    pbo.UnMap(uploadtex);
-    
+    pbo.UnMap();
+    const auto start = std::chrono::high_resolution_clock::now();
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgwidth/2, imgheight, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    pbo.UnBind();
+
 #else
+    const auto start = std::chrono::high_resolution_clock::now();
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgwidth/2, imgheight, GL_RGBA, GL_UNSIGNED_BYTE, imgdataptr);
 #endif
+
     glBindTexture(GL_TEXTURE_2D, 0);
 
-	//const auto end = std::chrono::high_resolution_clock::now();
-    //cout <<"upload time : " << std::chrono::duration<double, std::milli>(end - start).count() << endl;
+	const auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "upload time : " << std::chrono::duration<double, std::milli>(end - start).count() << std::endl;
    
     return true;
 }
