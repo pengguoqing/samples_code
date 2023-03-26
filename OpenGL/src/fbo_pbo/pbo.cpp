@@ -69,7 +69,7 @@ bool CXPbo::Init(uint32_t width, uint32_t height, PBOTYPE type, GLenum pixfmt)
 
    glBindBuffer(m_rwtype, 0);
 
-   return false;
+   return true;
 }
 
 void CXPbo::Map(uint8_t **ptr, uint32_t *linesize) const

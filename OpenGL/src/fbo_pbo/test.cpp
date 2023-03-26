@@ -186,7 +186,7 @@ bool   UploadYUYV(const CXPbo& pbo, const std::vector<uint8_t>&imgdata, uint32_t
     uint32_t linesizeout{0};
 
     pbo.Map(&dstptr, &linesizeout);
-    std::cout << "ptr : " << static_cast<void*>(dstptr) << endl;
+    std::cout << "ptr : " << static_cast<void*>(dstptr) << std::endl;
 
     if (linesizeout == linesizeimg){
         memcpy_s(dstptr, static_cast<rsize_t>(linesizeout)*imgheight, imgdataptr, static_cast<rsize_t>(linesizeimg)*imgheight);
