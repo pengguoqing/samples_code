@@ -13,24 +13,24 @@
 #include <string>
 #include <array>
 
-namespace mediaIO
-{
+namespace mediaio {
 
-    struct CXMeidiaInfo
-    {
-        CXMeidiaInfo() = default;
-        ~CXMeidiaInfo() = default;
-        CXMeidiaInfo(const CXMeidiaInfo &another) = default;
-        CXMeidiaInfo(CXMeidiaInfo &&another) = default;
-        CXMeidiaInfo &operator=(const CXMeidiaInfo &another) = default;
-        CXMeidiaInfo &operator=(CXMeidiaInfo &&another) = default;
+    constexpr int kMaxAVPlanes{8};
+
+    struct ClipInfo {
+        ClipInfo()  = default;
+        ~ClipInfo() = default;
+        ClipInfo(const ClipInfo &another) = default;
+        ClipInfo(ClipInfo &&another) = default;
+        ClipInfo &operator=(const ClipInfo &another) = default;
+        ClipInfo &operator=(ClipInfo &&another) = default;
 
         // video params
         bool m_hasvideo;
         bool m_hasaudio;
-        int m_width;
-        int m_height;
-        int m_gop_size;
+        int  m_width;
+        int  m_height;
+        int  m_gop_size;
         std::string m_vcodecname;
         std::string m_pixfmtname;
 
@@ -44,27 +44,30 @@ namespace mediaIO
         int64_t m_duration;
         int64_t m_nb_frames;
     };
-    using MediaInfo = CXMeidiaInfo;
+  
 
-    enum class PixFmt : uint8_t
-    {
+    enum class PixFmt : uint8_t{
         kYUV422,
         kYUV422P,
         kYUV420P,
-        kYUVP,
+        kYUV,
         kRGB,
     };
 
-    enum class MetaDataType : uint8_t
-    {
-        kVideo,
-        kAudioCh1,
-        kAudioCh2,
-    };
+    struct ClipOutputFmt{
+      enum class MetaDataType : uint8_t
+      {
+        kClipClassV,
+        kClipClassA1,
+        kClipClassA2,
+        kClipClassA3,
+        kClipClassA4,
+        kClipClassA5,
+        kClipClassA6,
+        kClipClassA7,
+        kClipClassA8,
+      };
 
-    struct CXReaderParam
-    {
-        bool         m_origin;
         MetaDataType m_type;
         
         int          m_width;
@@ -74,23 +77,33 @@ namespace mediaIO
         int          m_audiodepth;
         int          m_samplerate;
     };
-    using readerinfo = CXReaderParam;
 
-    struct CXFrameInfo
+
+    struct VideoFrame
     {
-        std::array<uint8_t*, 4> m_data;
+        std::array<uint8_t*, kMaxAVPlanes> m_data;
         uint64_t                m_pos;
-    };
-    using Frame = CXFrameInfo;
+        int                     m_width;
+        int                     m_height;
+        PixFmt                  m_pixfmt;
 
-    class IXMediaReader
+    };
+    
+    struct AuiodFrame{
+        std::array<uint8_t, 8> m_data;
+
+
+    };
+
+
+    class IClipReader
     {
     public:
 
-        virtual             ~IXMediaReader()                        = 0; 
-        virtual  bool       OpenMediaFile(std::string pathname)     = 0;
-        virtual  MediaInfo  GetMediaInfo() const                    = 0;
-        virtual  void       SetOutputInfo(const readerinfo& info)   = 0;
-        virtual  bool       GetFrame(uint64_t)                      = 0;
+        virtual              ~IClipReader()                           = 0; 
+        virtual  bool        OpenClipFile(std::string pathname)       = 0;
+        virtual  ClipInfo    GetClipInfo() const                      = 0;
+        virtual  void        SetOutputFmt(const ClipOutputFmt& info)  = 0;
+        virtual  bool        GetFrame(uint64_t)                       = 0;
     };
 }
