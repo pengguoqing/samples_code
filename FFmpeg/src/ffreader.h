@@ -7,7 +7,6 @@
 #pragma once
 
 #include "readerbase.h"
-
 #include <map>
 #include <unordered_map>
 #include <queue>
