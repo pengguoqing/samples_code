@@ -182,7 +182,7 @@ MediaInfo FFmpegReader::CEXFFmpegReader::GetMediaInfo() const
 
 bool FFmpegReader::CEXFFmpegReader::InitDecoder(enum AVMediaType type)
 {
-    mp_decode* decode = AVMEDIA_TYPE_VIDEO==type ? &m_vdecode : &m_adecode;
+    mp_decode*  = AVMEDIA_TYPE_VIDEO==type ? &m_vdecode : &m_adecode;
 	
     int ret = av_find_best_stream(m_filefmt_ctx, type, -1, -1, nullptr, 0);
 	if (AVERROR_STREAM_NOT_FOUND == ret)
@@ -263,7 +263,7 @@ bool FFmpegReader::CEXFFmpegReader::OpenCodec(mp_decode* decode)
 
 void FFmpegReader::CEXFFmpegReader::ParaseMediaInfo()
 {
-    m_mediainfo.m_width = m_vdecode.m_stream->codecpar->width;
+    m_mediainfo.m_width  = m_vdecode.m_stream->codecpar->width;
     m_mediainfo.m_height = m_vdecode.m_stream->codecpar->height;
     m_mediainfo.m_pixfmt = m_vdecode.m_decode_ctx->pix_fmt;
     strcpy_s(m_mediainfo.m_pixfmt_name, av_get_pix_fmt_name(static_cast<AVPixelFormat>(m_mediainfo.m_pixfmt)));

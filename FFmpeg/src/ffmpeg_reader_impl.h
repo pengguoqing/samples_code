@@ -33,7 +33,7 @@ extern "C"
 
 	SwsContext*     m_sws_ctx;
 
-	SwrContext* m_swr_ctx;
+	SwrContext*     m_swr_ctx;
 
 	bool			m_frame_ready;
 	bool			m_packet_ready;

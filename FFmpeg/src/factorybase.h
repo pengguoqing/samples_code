@@ -7,12 +7,14 @@
 #pragma once
 
 #include "readerbase.h"
-namespace mediaIO
+
+namespace mediaio
 {
-    class IXRFactory
+
+    class IFactory
     {
-    public:
-        virtual ~IXRFactory() = 0;
-        virtual IXMediaReader* CreateReader() = 0;
+      public:
+        virtual ~IFactory() = 0;
+        virtual IClipReader* CreateReader() = 0;
     };
 }
