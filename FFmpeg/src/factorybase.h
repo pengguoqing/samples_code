@@ -10,7 +10,6 @@
 
 namespace mediaio
 {
-
     class IFactory
     {
       public:

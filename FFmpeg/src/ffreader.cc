@@ -131,7 +131,6 @@ bool FFReader::InitDecoder(AVMediaType type)
 
 bool FFReader::OpenCodec(ffdecode *decode)
 {
-
     AVCodecContext* codec_ctx = avcodec_alloc_context3(decode->m_codec);
 	if (nullptr == codec_ctx) {	
 		return false;

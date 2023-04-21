@@ -46,6 +46,7 @@ namespace mediaio {
         kYUV422,
         kYUV422P,
         kYUV420P,
+        kYUVP,
         kYUV,
         kRGB,
     };
@@ -64,8 +65,8 @@ namespace mediaio {
         int  m_width;
         int  m_height;
         int  m_gop_size;
-        std::string m_vcodecname;
-        std::string m_pixfmtname;
+        std::string m_vcodec_name;
+        std::string m_pixfmt_name;
 
         // audio params
         int m_samplerate;
@@ -81,15 +82,17 @@ namespace mediaio {
     struct ClipOutputFmt{
       enum class MetaDataType : uint8_t
       {
-        kClipClassV,
-        kClipClassA1,
-        kClipClassA2,
-        kClipClassA3,
-        kClipClassA4,
-        kClipClassA5,
-        kClipClassA6,
-        kClipClassA7,
-        kClipClassA8,
+        kClipClassV  = 1 << 0,
+        kClipClassA1 = 1 << 1,
+        kClipClassA2 = 1 << 2,
+        kClipClassA3 = 1 << 3,
+        kClipClassA4 = 1 << 4,
+        kClipClassA5 = 1 << 5,
+        kClipClassA6 = 1 << 6,
+        kClipClassA7 = 1 << 7,
+        kClipClassA8 = 1 << 8,
+        kClipClassAudioDefault = kClipClassA1 | kClipClassA2 | kClipClassA3 | kClipClassA4 | \
+                                 kClipClassA5 | kClipClassA6 | kClipClassA7 | kClipClassA8,
       };
 
         MetaDataType m_type;

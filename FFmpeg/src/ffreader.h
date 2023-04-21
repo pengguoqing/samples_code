@@ -90,7 +90,7 @@ class FFReader: public IClipReader {
 	    ffdecode		 m_adecode;
 	    ffdecode*        m_curdecode;
 	    ClipInfo		 m_mediainfo;
-	    ReaderParam      m_dst_frameinfo;
+	    ClipOutputFmt    m_dstinfo;
 	    bool			 m_exit;
         int				 m_cur_pos;
 	    int				 m_seek_pos;

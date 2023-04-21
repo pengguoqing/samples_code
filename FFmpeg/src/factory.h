@@ -6,8 +6,20 @@
 */
 
 #pragma once
-namespace mediaIO
-{
+#include"factorybase.h"
 
+namespace mediaio
+{
+  
+class IOFactory:public IFactory {
+
+public:
+  IOFactory()  = default;
+  ~IOFactory() = default;
+
+public:
+  IClipReader* CreateReader() override;
+
+};
 
 }
