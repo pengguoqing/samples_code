@@ -4,7 +4,7 @@
 namespace mediaio {
 
 IClipReader *mediaio::IOFactory::CreateReader() {
-    return nullptr;
+    return new FFReader();
 }
 
 }

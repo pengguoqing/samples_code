@@ -19,7 +19,7 @@ public:
 
 public:
   IClipReader* CreateReader() override;
-
+  
 };
 
 }

@@ -18,18 +18,17 @@ namespace mediaio {
     constexpr int kMaxAVPlanes{8};
 
     enum class AudioFmt:uint8_t {
-	    AUDIO_FORMAT_UNKNOWN,
+	     kAudioFmtUNKNOWN,
 
-	    AUDIO_FORMAT_U8BIT,
-	    AUDIO_FORMAT_16BIT,
-	    AUDIO_FORMAT_32BIT,
-	    AUDIO_FORMAT_FLOAT,
-
-	    AUDIO_FORMAT_U8BIT_PLANAR,
-	    AUDIO_FORMAT_16BIT_PLANAR,
-	    AUDIO_FORMAT_32BIT_PLANAR,
-	    AUDIO_FORMAT_FLOAT_PLANAR,
-        };
+	     kAudioFmtU8BIT,
+	     kAudioFmt16BIT,
+	     kAudioFmt32BIT,
+	     kAudioFmtFLOAT,
+	     kAudioFmtU8BIT_PLANAR,
+	     kAudioFmt16BIT_PLANAR,
+	     kAudioFmt32BIT_PLANAR,
+	     kAudioFmtFLOAT_PLANAR,
+      };
         
         enum class AudioLayout:uint8_t {
 	    UNKNOWN,    
@@ -52,12 +51,23 @@ namespace mediaio {
     };
 
     struct ClipInfo {
-        ClipInfo()  = default;
+        ClipInfo()
+        : m_hasaudio{0},
+          m_hasvideo{0},
+          m_width{0},
+          m_height{0},
+          m_gop_size{0},
+          m_vcodec_name{},
+          m_pixfmt_name{},
+          m_samplerate{0},
+          m_audio_depth{0},
+          m_samplefmt{AudioFmt::kAudioFmtUNKNOWN},
+          m_acodec_name{},
+          m_duration{0},
+          m_nb_frames{0}
+        {}
+
         ~ClipInfo() = default;
-        ClipInfo(const ClipInfo &another) = default;
-        ClipInfo(ClipInfo &&another) = default;
-        ClipInfo &operator=(const ClipInfo &another) = default;
-        ClipInfo &operator=(ClipInfo &&another) = default;
 
         // video params
         bool m_hasvideo;
@@ -70,19 +80,20 @@ namespace mediaio {
 
         // audio params
         int m_samplerate;
-        int m_samplefmt;
         int m_audio_depth;
+        AudioFmt    m_samplefmt;
         std::string m_acodec_name;
 
         // clip params
         int64_t m_duration;
         int64_t m_nb_frames;
     };
-  
-    struct ClipOutputFmt{
+
+    
+    struct [[deprecated]] ClipOutputFmt{
       enum class MetaDataType : uint8_t
       {
-        kClipClassV  = 1 << 0,
+        kClipClassV  = 1 << 0,       
         kClipClassA1 = 1 << 1,
         kClipClassA2 = 1 << 2,
         kClipClassA3 = 1 << 3,
@@ -92,17 +103,22 @@ namespace mediaio {
         kClipClassA7 = 1 << 7,
         kClipClassA8 = 1 << 8,
         kClipClassAudioDefault = kClipClassA1 | kClipClassA2 | kClipClassA3 | kClipClassA4 | \
-                                 kClipClassA5 | kClipClassA6 | kClipClassA7 | kClipClassA8,
+                                 kClipClassA5 | kClipClassA6 | kClipClassA7 | kClipClassA8,    
       };
 
         MetaDataType m_type;
-        
         int          m_width;
         int          m_height;
         PixFmt       m_pixfmt;
 
         int          m_audiodepth;
         int          m_samplerate;
+    };
+
+    enum class SoureType:uint8_t {
+        kSourceTypeUnknow ,
+        kSourceTypeV,
+        kSourceTypeA,
     };
 
     struct VideoSource {
@@ -142,9 +158,10 @@ namespace mediaio {
         virtual  bool        OpenClipFile(std::string filepath)       = 0;
         virtual  void        CloseClipFile()                          = 0;
         virtual  ClipInfo    GetClipInfo() const                      = 0;
-        virtual  void        SetOutputFmt(const ClipOutputFmt& info)  = 0;
+        virtual  bool        SetReadSourceType(SoureType src)         = 0;
         virtual  bool        GetSourceV(VideoSource* frame, uint64_t pos)   = 0;
         virtual  bool        GetSourceA(AudioSource* frame, uint64_t pos)   = 0;
+        virtual  void		     SeekPos(uint64_t pos)                    = 0;
         virtual  void        ReleaseFrame(uint64_t pos)               = 0;
     };
 }
