@@ -12,10 +12,19 @@ file(GLOB SOURCE
 "${CMAKE_SOURCE_DIR}/src/${demo}/*.cc"
     )  
 
-add_library(ffrw SHARED ${SOURCE})
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-link_directories(${CMAKE_SOURCE_DIR}/lib)
-include_directories(${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(${PROJECT_NAME} avformat avcodec avutil swscale swresample)
+add_library(ffrw SHARED ${SOURCE})
+target_include_directories(ffrw PRIVATE SYSTEM ${CMAKE_SOURCE_DIR}/include)
+target_link_directories(ffrw PRIVATE ${CMAKE_SOURCE_DIR}/lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE avformat avcodec avutil swscale swresample)
 target_compile_definitions(ffrw PRIVATE UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS)
+
+set_target_properties(ffrw PROPERTIES
+ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib
+RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/Release
+RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_SOURCE_DIR}/bin/Debug
+RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO   ${CMAKE_SOURCE_DIR}/bin/RelWithDebInfo
+PDB_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/pdb
+)
 

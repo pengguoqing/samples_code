@@ -57,43 +57,42 @@ class FFReader: public IClipReader {
         FFReader();
         ~FFReader();
             
-        bool        OpenClipFile(std::string pathname)      override;
+        bool        OpenClipFile(std::string pathname, SoureType metatype)  override;
         void        CloseClipFile()                         override;
         ClipInfo    GetClipInfo() const                     override;
-        bool        SetReadSourceType(SoureType src) 		override;
-        bool        GetSourceV(VideoSource* frame, uint64_t pos)   override;
-        bool        GetSourceA(AudioSource* frame, uint64_t pos)   override;
-		void		SeekPos(uint64_t pos)					override;
+        bool        GetSourceData(AVSoucreData* frame, uint64_t pos)  override;
+		bool		SeekToFrameNum(uint64_t seek_pos)       override;
         void        ReleaseFrame(uint64_t pos)              override;
 
     private:
-	    bool InitDecoder(enum AVMediaType type);
-	    bool OpenCodec(ffdecode* decode);
-	    void ParaseMediaInfo();
-	
-	    void ThreadFunc();
-	    int  SeekFile(uint64_t seek_pos);
-	    int  ReadNextPacket();
-	    bool PrepareFrame();
-	    int	 DecodeFrame();
-	    bool CheckContinueDecode();
-	    void MoveFrameToCache();
-		AudioFmt   ConverAudioFmt(AVSampleFormat samplefmt);
+		bool 		SetReadMetaType();
+	    bool 		InitDecoder(enum AVMediaType type);
+	    bool 		OpenCodec(ffdecode* decode);
+	    void 		ParaseMediaInfo();
+		void		SeekFile();
+	    
+	    int  		ReadNextPacket();
+	    bool 		PrepareFrame();
+	    int	 		DecodeFrame();
+	    bool 		CheckContinueDecode();
+	    void 		MoveFrameToCache();
+		AudioFmt    ConverAudioFmt(AVSampleFormat samplefmt);
+
+		void 		ThreadFunc();
+
     private:
 	    void CloseFile();
 	    void ClearDecoderRes(ffdecode* decode);
 	    void FlushDecoder();
 	    void FlushFrameCache();
 	
-		void ThreadFunc();
-
     private:
 	    AVFormatContext* m_filefmt_ctx;
 	    ffdecode         m_vdecode;
 	    ffdecode		 m_adecode;
 		ffdecode*  	   	 m_curvalid_decode;
 	    ClipInfo		 m_mediainfo;
-	    SoureType   	 m_srctype;
+	    SoureType   	 m_read_type;
 	    bool			 m_exit;
 	    bool		     m_eof;
 	    bool			 m_sws;
@@ -106,9 +105,8 @@ class FFReader: public IClipReader {
 	    std::mutex					m_vcache_mux;
 	    std::condition_variable_any m_cache_condi;
 	    std::map<int, AVFrame*>	    m_frame_cache;
-	
-	    std::condition_variable_any m_status_condi;
 
+	    std::condition_variable_any m_status_condi;
 
 	    std::atomic<bool>           m_seek;
 	    std::atomic<bool>			m_reset;

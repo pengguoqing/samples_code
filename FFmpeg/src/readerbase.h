@@ -84,12 +84,14 @@ namespace mediaio {
         AudioFmt    m_samplefmt;
         std::string m_acodec_name;
 
-        // clip params
+        // ms duration
         int64_t m_duration;
+
+        //total frames
         int64_t m_nb_frames;
     };
 
-    
+#if 0   
     struct [[deprecated]] ClipOutputFmt{
       enum class MetaDataType : uint8_t
       {
@@ -115,12 +117,29 @@ namespace mediaio {
         int          m_samplerate;
     };
 
+#endif
+
     enum class SoureType:uint8_t {
         kSourceTypeUnknow ,
         kSourceTypeV,
         kSourceTypeA,
     };
 
+
+    struct AVSoucreData {
+        AVSoucreData()
+        :m_data{},
+         m_linesize{},
+         m_duration{0.f},
+         m_pts{0.f}
+        {}
+        std::array<uint8_t*, kMaxAVPlanes> m_data;
+        std::array<uint32_t, kMaxAVPlanes> m_linesize;
+        float                              m_duration;
+        float                              m_pts;
+    };
+
+#if 0
     struct VideoSource {
         VideoSource()
         : m_data{},
@@ -139,7 +158,7 @@ namespace mediaio {
     struct AudioSource {
         AudioSource()
         : m_data{},
-          m_fmt(AudioFmt::AUDIO_FORMAT_UNKNOWN),
+          m_fmt(AudioFmt::kAudioFmtUNKNOWN),
           m_layout(AudioLayout::UNKNOWN),
           m_samplecnt(0),
           m_pos(0)
@@ -151,17 +170,16 @@ namespace mediaio {
         AudioLayout                        m_layout;
     };
 
+#endif
+
     class IClipReader
     {
     public:
-        virtual              ~IClipReader()                           = 0; 
-        virtual  bool        OpenClipFile(std::string filepath)       = 0;
+        virtual  bool        OpenClipFile(std::string filepath, SoureType metatype) = 0;
         virtual  void        CloseClipFile()                          = 0;
         virtual  ClipInfo    GetClipInfo() const                      = 0;
-        virtual  bool        SetReadSourceType(SoureType src)         = 0;
-        virtual  bool        GetSourceV(VideoSource* frame, uint64_t pos)   = 0;
-        virtual  bool        GetSourceA(AudioSource* frame, uint64_t pos)   = 0;
-        virtual  void		     SeekPos(uint64_t pos)                    = 0;
+        virtual  bool        GetSourceData(AVSoucreData* frame, uint64_t pos) = 0;
+        virtual  bool		     SeekToFrameNum(uint64_t seek_pos)        = 0;
         virtual  void        ReleaseFrame(uint64_t pos)               = 0;
     };
 }
