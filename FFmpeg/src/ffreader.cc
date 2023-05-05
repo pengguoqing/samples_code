@@ -97,7 +97,7 @@ FFReader::ffdecode::ffdecode()
         FlushFrameCache();
     
         float seek_percent { m_seek_pos/static_cast<float>(m_mediainfo.m_nb_frames) };
-        int64_t seek_to    { seek_percent * m_filefmt_ctx->duration }; 
+        int64_t seek_to    { static_cast<int64_t> (seek_percent * m_filefmt_ctx->duration) }; 
         AVRational time_base {1, AV_TIME_BASE};
 	    m_seek_pts = av_rescale_q(seek_to, time_base, m_curvalid_decode->m_stream->time_base);
         av_seek_frame(m_filefmt_ctx, m_curvalid_decode->m_stream->index, m_seek_pts, AVSEEK_FLAG_BACKWARD);
