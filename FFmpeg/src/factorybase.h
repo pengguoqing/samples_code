@@ -13,7 +13,8 @@ namespace mediaio
     class IFactory
     {
       public:
-        virtual ~IFactory() = 0;
         virtual IClipReader* CreateReader() = 0;
     };
 }
+
+__declspec(dllexport) mediaio::IFactory* CreateMediaIOFactory();

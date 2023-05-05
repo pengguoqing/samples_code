@@ -1,8 +1,8 @@
 /*
-  ·ÂÕÕ windows ÏµÍ³ÖĞµÄ Event ÊÂ¼ş, ÀûÓÃ C++ ±ê×¼¿âÊµÏÖÒ»¸öÀàËÆµÄ¹¦ÄÜ¡£
-  Ä¿±êÊÇÓÃÓÚÏß³ÌÈÎÎñ¼äµÄÍ¨Ñ¶
-  ×÷Õß£º Åí¹úÇì
-  ÓÊÏä£º forwaradapeng@gmail.com
+  ï¿½ï¿½ï¿½ï¿½ windows ÏµÍ³ï¿½Ğµï¿½ Event ï¿½Â¼ï¿½, ï¿½ï¿½ï¿½ï¿½ C++ ï¿½ï¿½×¼ï¿½ï¿½Êµï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ÆµÄ¹ï¿½ï¿½Ü¡ï¿½
+  Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨Ñ¶
+  ï¿½ï¿½ï¿½ß£ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+  ï¿½ï¿½ï¿½ä£º forwaradapeng@gmail.com
 */
 
 
@@ -12,37 +12,37 @@
 #include <mutex>
 #include <chrono>
 
-class CXEvent
+class Event
 {
 public:
 	enum class Mode: uint8_t
 	{
-	   // ±»Ä³Ò»¸öµÈ´ıÕß Wait() ºó×Ô¶¯ÖØÖÃ
+	   // ï¿½ï¿½Ä³Ò»ï¿½ï¿½ï¿½È´ï¿½ï¿½ï¿½ Wait() ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½
 	   Auto,
 	   
-	   //ĞèÒªÍ¨¹ı Reset() ÊÖ¶¯ÖØÖÃ, ·ñÕß±»ÉèÖÃÎªÓĞĞÅºÅºóÒ»Ö±´¦ÓÚÓĞĞÅºÅ×´Ì¬
-	   //ËùÓĞµÄ Wait() ¶¼ÄÜÁ¢¿Ì·µ»Ø
+	   //ï¿½ï¿½ÒªÍ¨ï¿½ï¿½ Reset() ï¿½Ö¶ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ß±ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ÅºÅºï¿½Ò»Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Åºï¿½×´Ì¬
+	   //ï¿½ï¿½ï¿½Ğµï¿½ Wait() ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ì·ï¿½ï¿½ï¿½
 	   Manual
 	};
 
 public:
-	explicit CXEvent(Mode mode = Mode::Auto, bool initstate = false);
-	~CXEvent() = default;
+	explicit Event(Mode mode = Mode::Auto, bool initstate = false);
+	~Event() = default;
 	
-	//ÉèÖÃÊÂ¼şÓĞĞÅºÅ
+	//ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½Åºï¿½
 	inline void SetEvent()   const;
 	
-	//ÖØÖÃÊÂ¼şÎªÎŞĞÅºÅ
+	//ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½Îªï¿½ï¿½ï¿½Åºï¿½
 	inline void ResetEvent() const;
 	
-	//³ÖĞøµÈ´ıÖ±µ½ÊÂ¼şÓĞĞÅºÅ, Èç¹ûÊÇ Auto Ä£Ê½Ôò±ØĞëµÈ´ıµ½¸ÃÏß³ÌÄÜÄÃµ½×´Ì¬
+	//ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½Ö±ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½Åºï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ Auto Ä£Ê½ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß³ï¿½ï¿½ï¿½ï¿½Ãµï¿½×´Ì¬
 	inline void Wait()       const;	
 	
-	//µÈ´ıÊÂ¼şÒ»¶¨Ê±¼ä, Ê±¼ä·¶Î§ÄÚÊÂ¼şÓĞĞÅºÅÔò·µ»Ø true,·ñÔò·µ»Ø false
+	//ï¿½È´ï¿½ï¿½Â¼ï¿½Ò»ï¿½ï¿½Ê±ï¿½ï¿½, Ê±ï¿½ä·¶Î§ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½Åºï¿½ï¿½ò·µ»ï¿½ true,ï¿½ï¿½ï¿½ò·µ»ï¿½ false
 	template <typename Rep, typename Period>
 	inline bool tryWait(const std::chrono::duration<Rep, Period>& duratio) const;
 
-	//¼ì²éµ±Ç°Ïß³ÌÊÇ·ñÓĞĞÅºÅ, Ö»¹Û²ì²»¸Ä±äÈÎºÎ×´Ì¬
+	//ï¿½ï¿½éµ±Ç°ï¿½ß³ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½Åºï¿½, Ö»ï¿½Û²ì²»ï¿½Ä±ï¿½ï¿½Îºï¿½×´Ì¬
 	inline bool isSignal()const;
 private:
 	struct EventImpl
@@ -65,43 +65,43 @@ private:
 	const std::shared_ptr<EventImpl> m_event;
 };
 
-CXEvent::CXEvent(Mode mode, bool initstate)
+Event::Event(Mode mode, bool initstate)
 	:m_event(std::make_shared<EventImpl>(mode, initstate))
 {}
 
-void CXEvent::SetEvent() const
+void Event::SetEvent() const
 {
 	m_event->Set();
 }
 
-void CXEvent::ResetEvent() const
+void Event::ResetEvent() const
 {
     m_event->Reset();
 }
 
-void CXEvent::Wait() const
+void Event::Wait() const
 {
 	m_event->Wait();
 }
 
 template <typename Rep, typename Period>
-bool CXEvent::tryWait(const std::chrono::duration<Rep, Period>& duratio) const
+bool Event::tryWait(const std::chrono::duration<Rep, Period>& duratio) const
 {
 	return m_event->Wait_for(duratio);
 }
 
-bool CXEvent::isSignal()const
+bool Event::isSignal()const
 {
 	std::unique_lock<std::mutex> r_lock(m_event->m_mutex);
 	return m_event->m_signal;
 }
 
-CXEvent::EventImpl::EventImpl(Mode mode, bool initState)
+Event::EventImpl::EventImpl(Mode mode, bool initState)
 	:m_mode(mode),
 	 m_signal(initState)
 {}
 
-void CXEvent::EventImpl::Set()
+void Event::EventImpl::Set()
 {
 	{
 		std::unique_lock<std::mutex> w_lock(m_mutex);
@@ -122,7 +122,7 @@ void CXEvent::EventImpl::Set()
 	}
 }
 
-void CXEvent::EventImpl::Wait()
+void Event::EventImpl::Wait()
 {
 	std::unique_lock<std::mutex> r_lock(m_mutex);
 	m_condi.wait(r_lock,[this]{ return m_signal;});
@@ -134,14 +134,14 @@ void CXEvent::EventImpl::Wait()
 	return;
 }
 
-void CXEvent::EventImpl::Reset()
+void Event::EventImpl::Reset()
 {
 	std::unique_lock<std::mutex> w_lock(m_mutex);
 	m_signal = false;
 }
 
 template <typename Rep, typename Period>
-bool CXEvent::EventImpl::Wait_for(const std::chrono::duration<Rep, Period>& duration)
+bool Event::EventImpl::Wait_for(const std::chrono::duration<Rep, Period>& duration)
 {
 	std::unique_lock<std::mutex> r_lock(m_mutex);
 	if (!m_condi.wait_for(r_lock, duration, [this] { return m_signal; }))

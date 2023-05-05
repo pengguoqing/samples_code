@@ -198,7 +198,8 @@ FFReader::ffdecode::ffdecode()
 
         return true;
     }
-        void FFReader::ParaseMediaInfo() {
+    
+    void FFReader::ParaseMediaInfo() {
 
         m_mediainfo.m_width      = m_vdecode.m_stream->codecpar->width;
         m_mediainfo.m_height     = m_vdecode.m_stream->codecpar->height;

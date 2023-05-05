@@ -11,7 +11,7 @@
 namespace mediaio
 {
   
-class IOFactory:public IFactory {
+class IOFactory: public IFactory {
 
 public:
   IOFactory()  = default;

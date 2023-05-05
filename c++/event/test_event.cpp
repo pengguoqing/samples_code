@@ -8,10 +8,10 @@
 
 using namespace std;
 
-static CXEvent kEvent;
+static Event kEvent;
 static constexpr int testCnt = 3;
 
-void TestEventFunc1(const CXEvent& refEvent)
+void TestEventFunc1(const Event& refEvent)
 {
     for (int i=0; i< testCnt; i++)
     {
@@ -33,7 +33,7 @@ void TestEventFunc1(const CXEvent& refEvent)
     }
 
 }
-void TestEventFunc2(const CXEvent& refEvent)
+void TestEventFunc2(const Event& refEvent)
 {
 	for (int i=0; i<testCnt; i++)
 	{
@@ -56,8 +56,8 @@ void TestEventFunc2(const CXEvent& refEvent)
 
 int main()
 {
-	CXEvent refEvent1(kEvent);
-	CXEvent refEvent2(kEvent);
+	Event refEvent1(kEvent);
+	Event refEvent2(kEvent);
     std::thread testTh1(TestEventFunc1, refEvent1);
     std::thread testTh2(TestEventFunc2, refEvent2);
 
