@@ -59,14 +59,14 @@ class FFReader: public IClipReader {
         bool        OpenClipFile(std::string pathname, SoureType metatype)  override;
         void        CloseClipFile()                         override;
         ClipInfo    GetClipInfo() const                     override;
-        bool        GetSourceData(AVSoucreData* frame, uint64_t pos)  override;
-		bool		SeekToFrameNum(uint64_t seek_pos)       override;
-
+        bool        GetSourceData(uint64_t pos, AVSoucreData* frame)  override;
+	
     private:
 		bool 		SetReadMetaType();
 	    bool 		InitDecoder(enum AVMediaType type);
 	    bool 		OpenCodec(ffdecode* decode);
 	    void 		ParaseMediaInfo();
+		bool		SeekToFrameNum(uint64_t seek_pos);
 		void		SeekFile();
 	    
 	    int  		ReadNextPacket();
@@ -96,13 +96,14 @@ class FFReader: public IClipReader {
 	    bool			 m_sws{false};
 	    bool             m_swr{false};
 
-		int64_t				 m_cur_pos{0};
-	    int64_t				 m_seek_pos{0};
+		uint64_t				 m_cur_pos{0};
+		uint64_t 				 m_decode_pos{0};
+	    uint64_t				 m_seek_pos{0};
 		
 	    const size_t				m_maxche_size{5};
 	    std::mutex					m_cache_mux;
 	    std::condition_variable_any m_cache_condi;
-	    std::map<int64_t, std::shared_ptr<AVFrame>>	m_frame_cache;
+	    std::map<uint64_t, std::shared_ptr<AVFrame>>	m_frame_cache;
 
 	    std::condition_variable_any m_status_condi;
 

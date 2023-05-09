@@ -70,10 +70,10 @@ namespace mediaio {
         std::string m_acodec_name;
 
         // ms duration
-        int64_t m_duration{0};
+        uint64_t m_duration{0};
 
         //total frames
-        int64_t m_nb_frames{0};
+        uint64_t m_nb_frames{0};
     };
 
 #if 0   
@@ -163,7 +163,6 @@ namespace mediaio {
         virtual  bool        OpenClipFile(std::string filepath, SoureType metatype) = 0;
         virtual  void        CloseClipFile()                          = 0;
         virtual  ClipInfo    GetClipInfo() const                      = 0;
-        virtual  bool        GetSourceData(AVSoucreData* frame, uint64_t pos) = 0;
-        virtual  bool		 SeekToFrameNum(uint64_t seek_pos)        = 0;       
+        virtual  bool        GetSourceData(uint64_t pos, AVSoucreData* frame) = 0;
     };
 }

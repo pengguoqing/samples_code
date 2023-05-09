@@ -41,27 +41,52 @@ namespace mediaio {
         return m_mediainfo;
     }
 
-    bool FFReader::GetSourceData(AVSoucreData* frame, uint64_t pos) {
+    bool FFReader::GetSourceData(uint64_t pos, AVSoucreData* frame) {
 
+        if (pos >= m_mediainfo.m_nb_frames){
+            return false;
+        }
+        
+        if (pos<m_available_pos || pos > m_decode_pos+1) {
+                SeekToFrameNum(pos);
+        }
 
+        {
+             const AVFrame* crrespond_frame{nullptr};
+             std::unique_lock<std::mutex> cache_lock(m_cache_mux);
 
+             if (m_available_pos <= pos && pos <= m_decode_pos) {                
+                crrespond_frame = m_frame_cache.find(pos)->second.get();
+             }else {
+                    m_expect_new_frame.store(true, std::memory_order_relaxed);
+                    m_cache_condi.wait(cache_lock, [this, pos]{ return m_frame_cache.end() != m_frame_cache.find(pos);});
+                    crrespond_frame = m_frame_cache.find(pos)->second.get();
+             }
 
+             for(int i{0}; i<kMaxAVPlanes; i++){
+                    frame->m_data[i]     = crrespond_frame->data[i];
+                    frame->m_duration    = crrespond_frame->pkt_duration;
+                    frame->m_linesize[i] = crrespond_frame->linesize[i];
+                    frame->m_pts         = crrespond_frame->pts;
+                }
+        }
+       
         return false;
     }
 
     bool FFReader::SeekToFrameNum(uint64_t seek_pos) {
         if (seek_pos >= m_mediainfo.m_nb_frames) {
             return false;
-    }
+        }
     
-    //wait when workthread is seeking
-    while (m_seek.load(std::memory_order_relaxed)){ 
-    }
+         //wait when workthread is seeking
+        while (m_seek.load(std::memory_order_relaxed)){         
+        }
 
-    m_seek_pos = seek_pos;
-    m_seek.store(true, std::memory_order_relaxed);
+        m_seek_pos = seek_pos;
+        m_seek.store(true, std::memory_order_relaxed);
 
-    return 0;
+        return 0;
     }
 
     void FFReader::SeekFile() {
@@ -74,7 +99,7 @@ namespace mediaio {
         AVRational time_base {1, AV_TIME_BASE};
 	    m_seek_pts = av_rescale_q(seek_to, time_base, m_curvalid_decode->m_stream->time_base);
         av_seek_frame(m_filefmt_ctx, m_curvalid_decode->m_stream->index, m_seek_pts, AVSEEK_FLAG_BACKWARD);
-        m_cur_pos  = m_seek_pos;
+        m_available_pos  = m_seek_pos;
 
     }
 
@@ -178,7 +203,7 @@ namespace mediaio {
         m_mediainfo.m_nb_frames   = m_vdecode.m_stream->nb_frames;
         if (0 == m_mediainfo.m_nb_frames) {
             int64_t duration_second = m_vdecode.m_stream->duration * av_q2d(m_vdecode.m_stream->time_base);
-            m_mediainfo.m_nb_frames = static_cast<int64_t>(duration_second * av_q2d (m_vdecode.m_stream->avg_frame_rate));
+            m_mediainfo.m_nb_frames = static_cast<uint64_t>(duration_second * av_q2d (m_vdecode.m_stream->avg_frame_rate));
         }
 
         m_mediainfo.m_samplerate  = m_adecode.m_stream->codecpar->sample_rate;
@@ -283,22 +308,23 @@ namespace mediaio {
             av_frame_unref(codec_frame);
             return;
         } 
-        
+
         std::cout<< "pts:" << codec_frame->pts << std::endl;
 
         {
             std::unique_lock<std::mutex> cache_lock(m_cache_mux);
-            m_cache_condi.wait(cache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_expect_new_frame.load(std::memory_order_relaxed);});      
+            m_cache_condi.wait(cache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_expect_new_frame.load(std::memory_order_relaxed) || m_seek.load(std::memory_order_relaxed);});      
             if (m_frame_cache.size() < m_maxche_size) {
                 std::shared_ptr<AVFrame> newframe{av_frame_alloc(), [](AVFrame* frame){av_frame_unref(frame); av_frame_free(&frame);}};
                 av_frame_ref(newframe.get(), codec_frame);
-                m_frame_cache.insert(std::pair<int64_t, std::shared_ptr<AVFrame>>{m_cur_pos++, newframe});
+                m_frame_cache.insert(std::pair<uint64_t, std::shared_ptr<AVFrame>>{m_decode_pos++, newframe});
             }else {
                 auto first_node = m_frame_cache.begin();
                 std::shared_ptr<AVFrame> frame = first_node->second;
                 m_frame_cache.erase(first_node);
+                m_available_pos++;
                 av_frame_ref(frame.get(), codec_frame);
-                m_frame_cache.insert(std::pair<int64_t, std::shared_ptr<AVFrame>>{m_cur_pos++, frame});
+                m_frame_cache.insert(std::pair<uint64_t, std::shared_ptr<AVFrame>>{m_decode_pos++, frame});
             }      
         }
 
