@@ -51,44 +51,29 @@ namespace mediaio {
     };
 
     struct ClipInfo {
-        ClipInfo()
-        : m_hasaudio{0},
-          m_hasvideo{0},
-          m_width{0},
-          m_height{0},
-          m_gop_size{0},
-          m_vcodec_name{},
-          m_pixfmt_name{},
-          m_samplerate{0},
-          m_audio_depth{0},
-          m_samplefmt{AudioFmt::kAudioFmtUNKNOWN},
-          m_acodec_name{},
-          m_duration{0},
-          m_nb_frames{0}
-        {}
-
+        ClipInfo() = default;
         ~ClipInfo() = default;
 
         // video params
-        bool m_hasvideo;
-        bool m_hasaudio;
-        int  m_width;
-        int  m_height;
-        int  m_gop_size;
+        bool m_hasvideo{false};
+        bool m_hasaudio{false};
+        int  m_width{0};
+        int  m_height{0};
+        int  m_gop_size{0};
         std::string m_vcodec_name;
         std::string m_pixfmt_name;
 
         // audio params
-        int m_samplerate;
-        int m_audio_depth;
-        AudioFmt    m_samplefmt;
+        int m_samplerate{0};
+        int m_audio_depth{0};
+        AudioFmt    m_samplefmt{AudioFmt::kAudioFmtUNKNOWN};
         std::string m_acodec_name;
 
         // ms duration
-        int64_t m_duration;
+        int64_t m_duration{0};
 
         //total frames
-        int64_t m_nb_frames;
+        int64_t m_nb_frames{0};
     };
 
 #if 0   
@@ -179,7 +164,6 @@ namespace mediaio {
         virtual  void        CloseClipFile()                          = 0;
         virtual  ClipInfo    GetClipInfo() const                      = 0;
         virtual  bool        GetSourceData(AVSoucreData* frame, uint64_t pos) = 0;
-        virtual  bool		     SeekToFrameNum(uint64_t seek_pos)        = 0;
-        virtual  void        ReleaseFrame(uint64_t pos)               = 0;
+        virtual  bool		 SeekToFrameNum(uint64_t seek_pos)        = 0;       
     };
 }

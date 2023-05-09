@@ -34,27 +34,26 @@ namespace mediaio {
 
 class FFReader: public IClipReader {
    struct ffdecode {
-      ffdecode();
-	  AVStream*		  m_stream;
-	  AVCodecContext* m_decode_ctx;
-	  const AVCodec*  m_codec;
+      ffdecode() = default;
+	  AVStream*		  m_stream{nullptr};
+	  AVCodecContext* m_decode_ctx{nullptr};
+	  const AVCodec*  m_codec{nullptr};
 
-	  AVFrame*		  m_sw_frame;
-	  AVFrame*		  m_decode_frame;
-	  AVPacket*       m_read_pkt;
+	  AVFrame*		  m_sw_frame{nullptr};
+	  AVFrame*		  m_decode_frame{nullptr};
+	  AVPacket*       m_read_pkt{nullptr};
 
-      SwsContext*     m_sws_ctx;
+      SwsContext*     m_sws_ctx{nullptr};
+	  SwrContext*     m_swr_ctx{nullptr};
 
-	  SwrContext*     m_swr_ctx;
-
-	  bool			  m_frame_ready;
-	  bool			  m_packet_ready;
-	  bool			  m_file_eof;
-	  bool            m_need;
+	  bool			  m_frame_ready{false};
+	  bool			  m_packet_ready{false};
+	  bool			  m_file_eof{false};
+	  bool            m_need{false};
    };
 
     public:
-        FFReader();
+        FFReader() = default;
         ~FFReader();
             
         bool        OpenClipFile(std::string pathname, SoureType metatype)  override;
@@ -62,7 +61,6 @@ class FFReader: public IClipReader {
         ClipInfo    GetClipInfo() const                     override;
         bool        GetSourceData(AVSoucreData* frame, uint64_t pos)  override;
 		bool		SeekToFrameNum(uint64_t seek_pos)       override;
-        void        ReleaseFrame(uint64_t pos)              override;
 
     private:
 		bool 		SetReadMetaType();
@@ -87,31 +85,32 @@ class FFReader: public IClipReader {
 	    void FlushFrameCache();
 	
     private:
-	    AVFormatContext* m_filefmt_ctx;
+	    AVFormatContext* m_filefmt_ctx{nullptr};
 	    ffdecode         m_vdecode;
 	    ffdecode		 m_adecode;
-		ffdecode*  	   	 m_curvalid_decode;
+		ffdecode*  	   	 m_curvalid_decode{nullptr};
 	    ClipInfo		 m_mediainfo;
-	    SoureType   	 m_read_type;
-	    bool			 m_exit;
-	    bool		     m_eof;
-	    bool			 m_sws;
-	    bool             m_swr;
+	    SoureType   	 m_read_type{SoureType::kSourceTypeUnknow};
+	    bool			 m_exit{false};
+	    bool		     m_eof{false};
+	    bool			 m_sws{false};
+	    bool             m_swr{false};
 
-		int				 m_cur_pos;
-	    int				 m_seek_pos;
+		int64_t				 m_cur_pos{0};
+	    int64_t				 m_seek_pos{0};
 		
-	    const int					m_maxche_size;
-	    std::mutex					m_vcache_mux;
+	    const size_t				m_maxche_size{5};
+	    std::mutex					m_cache_mux;
 	    std::condition_variable_any m_cache_condi;
-	    std::map<int, AVFrame*>	    m_frame_cache;
+	    std::map<int64_t, std::shared_ptr<AVFrame>>	m_frame_cache;
 
 	    std::condition_variable_any m_status_condi;
 
-	    std::atomic<bool>           m_seek;
-	    std::atomic<bool>			m_reset;
+	    std::atomic<bool>           m_seek{false};
+	    std::atomic<bool>			m_reset{false};
+		std::atomic<bool>			m_expect_new_frame{false};
 
-	    int64_t          m_seek_pts;
+	    int64_t          			m_seek_pts{0};
 
     private:
 	    std::thread      m_read_th;

@@ -2,37 +2,6 @@
 
 namespace mediaio {
 
-FFReader::ffdecode::ffdecode()
- :m_stream{nullptr},
-  m_decode_ctx{nullptr},
-  m_codec{nullptr},
-  m_sw_frame{nullptr},
-  m_decode_frame{nullptr},
-  m_read_pkt{nullptr},
-  m_sws_ctx{nullptr},
-  m_swr_ctx{nullptr},
-  m_frame_ready{false},
-  m_packet_ready{false},
-  m_file_eof{false},
-  m_need{false}
-  {}
-
-  FFReader::FFReader()
-   :m_filefmt_ctx{nullptr},
-    m_read_type{SoureType::kSourceTypeUnknow},
-    m_exit{false},
-    m_cur_pos{0},
-    m_seek_pos{0},
-    m_eof{false},
-    m_swr{false},
-    m_sws{false},
-    m_maxche_size{10},
-    m_seek{false},
-    m_reset{false},
-    m_seek_pts{0},
-    m_curvalid_decode{nullptr}
-  {}
-
   FFReader::~FFReader() {
     CloseFile();
     }
@@ -73,6 +42,10 @@ FFReader::ffdecode::ffdecode()
     }
 
     bool FFReader::GetSourceData(AVSoucreData* frame, uint64_t pos) {
+
+
+
+
         return false;
     }
 
@@ -103,10 +76,6 @@ FFReader::ffdecode::ffdecode()
         av_seek_frame(m_filefmt_ctx, m_curvalid_decode->m_stream->index, m_seek_pts, AVSEEK_FLAG_BACKWARD);
         m_cur_pos  = m_seek_pos;
 
-    }
-
-    void FFReader::ReleaseFrame(uint64_t pos) {
-    
     }
 
     bool FFReader::InitDecoder(AVMediaType type) {
@@ -304,29 +273,36 @@ FFReader::ffdecode::ffdecode()
     }
 
     void FFReader::MoveFrameToCache() {
-        if (!m_curvalid_decode->m_frame_ready )
-        {
+        if (!m_curvalid_decode->m_frame_ready ) {
             return ;
         }
 
         m_curvalid_decode->m_frame_ready = false;
-        AVFrame* deframe = m_curvalid_decode->m_decode_frame;
-        if (deframe->pts < m_seek_pts)
-        {
-            av_frame_unref(deframe);
+        AVFrame* codec_frame = m_curvalid_decode->m_decode_frame;
+        if (codec_frame->pts < m_seek_pts) {
+            av_frame_unref(codec_frame);
             return;
-        }
-
-        AVFrame* cacheframe = av_frame_alloc();
-        av_frame_ref(cacheframe, deframe);
-        std::cout<< "pts:" << deframe->pts << std::endl;
+        } 
+        
+        std::cout<< "pts:" << codec_frame->pts << std::endl;
 
         {
-            std::unique_lock<std::mutex> vcache_lock(m_vcache_mux);
-            m_cache_condi.wait(vcache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_exit || m_seek; });
-            m_frame_cache.insert(std::pair<int, AVFrame*>(m_cur_pos++, cacheframe));
+            std::unique_lock<std::mutex> cache_lock(m_cache_mux);
+            m_cache_condi.wait(cache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_expect_new_frame.load(std::memory_order_relaxed);});      
+            if (m_frame_cache.size() < m_maxche_size) {
+                std::shared_ptr<AVFrame> newframe{av_frame_alloc(), [](AVFrame* frame){av_frame_unref(frame); av_frame_free(&frame);}};
+                av_frame_ref(newframe.get(), codec_frame);
+                m_frame_cache.insert(std::pair<int64_t, std::shared_ptr<AVFrame>>{m_cur_pos++, newframe});
+            }else {
+                auto first_node = m_frame_cache.begin();
+                std::shared_ptr<AVFrame> frame = first_node->second;
+                m_frame_cache.erase(first_node);
+                av_frame_ref(frame.get(), codec_frame);
+                m_frame_cache.insert(std::pair<int64_t, std::shared_ptr<AVFrame>>{m_cur_pos++, frame});
+            }      
         }
-    
+
+        av_frame_unref(codec_frame);
         m_cache_condi.notify_one();
         return;
 
@@ -411,12 +387,7 @@ FFReader::ffdecode::ffdecode()
     }
 
     void FFReader::FlushFrameCache() {
-        for (auto frame : m_frame_cache)
-        {
-            av_frame_unref(frame.second);
-            av_frame_free(&frame.second);
-        }
-        
+
         m_frame_cache.clear();
     }
 }
