@@ -17,7 +17,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCE})
 
 set(LIST_PUBLIC_HEADER
 ${CMAKE_SOURCE_DIR}/src/readerbase.h
-${CMAKE_SOURCE_DIR}/src/factory.h 
+${CMAKE_SOURCE_DIR}/src/factorybase.h 
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER  "${LIST_PUBLIC_HEADER}")
 

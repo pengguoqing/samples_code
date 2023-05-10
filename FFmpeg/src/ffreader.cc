@@ -58,16 +58,19 @@ namespace mediaio {
              if (m_available_pos <= pos && pos <= m_decode_pos) {                
                 crrespond_frame = m_frame_cache.find(pos)->second.get();
              }else {
+                    std::map<uint64_t, std::shared_ptr<AVFrame>>::iterator dstframe;
                     m_expect_new_frame.store(true, std::memory_order_relaxed);
-                    m_cache_condi.wait(cache_lock, [this, pos]{ return m_frame_cache.end() != m_frame_cache.find(pos);});
-                    crrespond_frame = m_frame_cache.find(pos)->second.get();
+                    m_cache_condi.wait(cache_lock, [this, pos, &dstframe]{ dstframe = m_frame_cache.find(pos); return m_frame_cache.end() != dstframe ;});
+                    m_expect_new_frame.store(false, std::memory_order_relaxed);
+
+                    crrespond_frame = dstframe->second.get();       
              }
 
-             for(int i{0}; i<kMaxAVPlanes; i++){
+             for(int i{0}; i < kMaxAVPlanes; i++){
                     frame->m_data[i]     = crrespond_frame->data[i];
-                    frame->m_duration    = crrespond_frame->pkt_duration;
+                    frame->m_duration    = crrespond_frame->pkt_duration * av_q2d(m_curvalid_decode->m_stream->time_base);
                     frame->m_linesize[i] = crrespond_frame->linesize[i];
-                    frame->m_pts         = crrespond_frame->pts;
+                    frame->m_pts         = av_q2d(m_curvalid_decode->m_stream->time_base) * crrespond_frame->pts;
                 }
         }
        
@@ -99,8 +102,7 @@ namespace mediaio {
         AVRational time_base {1, AV_TIME_BASE};
 	    m_seek_pts = av_rescale_q(seek_to, time_base, m_curvalid_decode->m_stream->time_base);
         av_seek_frame(m_filefmt_ctx, m_curvalid_decode->m_stream->index, m_seek_pts, AVSEEK_FLAG_BACKWARD);
-        m_available_pos  = m_seek_pos;
-
+        m_decode_pos = m_available_pos = m_seek_pos;
     }
 
     bool FFReader::InitDecoder(AVMediaType type) {
@@ -205,7 +207,8 @@ namespace mediaio {
             int64_t duration_second = m_vdecode.m_stream->duration * av_q2d(m_vdecode.m_stream->time_base);
             m_mediainfo.m_nb_frames = static_cast<uint64_t>(duration_second * av_q2d (m_vdecode.m_stream->avg_frame_rate));
         }
-
+        m_mediainfo.m_frame_rate  = av_q2d(av_guess_frame_rate(m_filefmt_ctx, m_vdecode.m_stream, nullptr));
+        
         m_mediainfo.m_samplerate  = m_adecode.m_stream->codecpar->sample_rate;
         m_mediainfo.m_audio_depth = m_adecode.m_stream->codecpar->bits_per_coded_sample;
         m_mediainfo.m_samplefmt   = ConverAudioFmt(m_adecode.m_decode_ctx->sample_fmt);
@@ -308,9 +311,7 @@ namespace mediaio {
             av_frame_unref(codec_frame);
             return;
         } 
-
-        std::cout<< "pts:" << codec_frame->pts << std::endl;
-
+        
         {
             std::unique_lock<std::mutex> cache_lock(m_cache_mux);
             m_cache_condi.wait(cache_lock, [this] {return m_frame_cache.size() < m_maxche_size || m_expect_new_frame.load(std::memory_order_relaxed) || m_seek.load(std::memory_order_relaxed);});      

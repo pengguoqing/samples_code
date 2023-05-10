@@ -96,7 +96,7 @@ class FFReader: public IClipReader {
 	    bool			 m_sws{false};
 	    bool             m_swr{false};
 
-		uint64_t				 m_cur_pos{0};
+		uint64_t				 m_available_pos{0};
 		uint64_t 				 m_decode_pos{0};
 	    uint64_t				 m_seek_pos{0};
 		

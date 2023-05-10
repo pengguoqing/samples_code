@@ -1,2 +1,4 @@
 OpenGL/build/*
 OpenGL/.vscode/*
+FFmpeg/build/*
+FFmpeg/.vscode/*

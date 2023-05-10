@@ -62,6 +62,7 @@ namespace mediaio {
         int  m_gop_size{0};
         std::string m_vcodec_name;
         std::string m_pixfmt_name;
+        float       m_frame_rate{0.f};
 
         // audio params
         int m_samplerate{0};
