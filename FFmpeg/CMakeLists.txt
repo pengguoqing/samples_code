@@ -11,7 +11,7 @@ file(GLOB SOURCE
 "${CMAKE_SOURCE_DIR}/src/${demo}/*.cc"
     )  
 
-
+add_compile_options(-g -O0)
 #set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 add_library(${PROJECT_NAME} SHARED ${SOURCE})
 

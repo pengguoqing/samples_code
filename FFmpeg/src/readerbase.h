@@ -161,7 +161,7 @@ namespace mediaio {
     class IClipReader
     {
     public:
-        virtual  bool        OpenClipFile(std::string filepath, SoureType metatype) = 0;
+        virtual  bool        OpenClipFile(const std::string& filepath, SoureType metatype) = 0;
         virtual  void        CloseClipFile()                          = 0;
         virtual  ClipInfo    GetClipInfo() const                      = 0;
         virtual  bool        GetSourceData(uint64_t pos, AVSoucreData* frame) = 0;

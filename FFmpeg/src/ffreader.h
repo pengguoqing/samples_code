@@ -48,7 +48,7 @@ class FFReader: public IClipReader {
 
 	  bool			  m_frame_ready{false};
 	  bool			  m_packet_ready{false};
-	  bool			  m_file_eof{false};
+	  bool			  m_pkt_eof{false};
 	  bool            m_need{false};
    };
 
@@ -56,13 +56,13 @@ class FFReader: public IClipReader {
         FFReader() = default;
         ~FFReader();
             
-        bool        OpenClipFile(std::string pathname, SoureType metatype)  override;
+        bool        OpenClipFile(const std::string& filepath, SoureType metatype)  override;
         void        CloseClipFile()                         override;
         ClipInfo    GetClipInfo() const                     override;
         bool        GetSourceData(uint64_t pos, AVSoucreData* frame)  override;
 	
     private:
-		bool 		SetReadMetaType();
+		bool 		StartRead();
 	    bool 		InitDecoder(enum AVMediaType type);
 	    bool 		OpenCodec(ffdecode* decode);
 	    void 		ParaseMediaInfo();
