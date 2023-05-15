@@ -199,25 +199,28 @@ namespace mediaio {
     
     void FFReader::ParaseMediaInfo() {
 
-        m_mediainfo.m_width      = m_vdecode.m_stream->codecpar->width;
-        m_mediainfo.m_height     = m_vdecode.m_stream->codecpar->height;
-   
-        m_mediainfo.m_pixfmt_name = av_get_pix_fmt_name(m_vdecode.m_decode_ctx->pix_fmt);
-        m_mediainfo.m_gop_size    = std::max(m_vdecode.m_decode_ctx->gop_size, 1);
-        m_mediainfo.m_nb_frames   = m_vdecode.m_stream->nb_frames;
-        if (0 == m_mediainfo.m_nb_frames) {
-            int64_t duration_second = m_vdecode.m_stream->duration * av_q2d(m_vdecode.m_stream->time_base);
-            m_mediainfo.m_nb_frames = static_cast<uint64_t>(duration_second * av_q2d (m_vdecode.m_stream->avg_frame_rate));
-        }
-        m_mediainfo.m_frame_rate  = av_q2d(av_guess_frame_rate(m_filefmt_ctx, m_vdecode.m_stream, nullptr));
-        
-        m_mediainfo.m_samplerate  = m_adecode.m_stream->codecpar->sample_rate;
-        m_mediainfo.m_audio_depth = m_adecode.m_stream->codecpar->bits_per_coded_sample;
-        m_mediainfo.m_samplefmt   = ConverAudioFmt(m_adecode.m_decode_ctx->sample_fmt);
-    
-        m_mediainfo.m_vcodec_name  = m_vdecode.m_codec->long_name;
-        m_mediainfo.m_acodec_name  = m_adecode.m_codec->long_name;
+        if (m_vdecode.m_stream){
+			m_mediainfo.m_width = m_vdecode.m_stream->codecpar->width;
+			m_mediainfo.m_height = m_vdecode.m_stream->codecpar->height;
 
+			m_mediainfo.m_pixfmt_name = av_get_pix_fmt_name(m_vdecode.m_decode_ctx->pix_fmt);
+			m_mediainfo.m_gop_size = std::max(m_vdecode.m_decode_ctx->gop_size, 1);
+			m_mediainfo.m_nb_frames = m_vdecode.m_stream->nb_frames;
+			if (0 == m_mediainfo.m_nb_frames) {
+				int64_t duration_second = m_vdecode.m_stream->duration * av_q2d(m_vdecode.m_stream->time_base);
+				m_mediainfo.m_nb_frames = static_cast<uint64_t>(duration_second * av_q2d(m_vdecode.m_stream->avg_frame_rate));
+			}
+            m_mediainfo.m_vcodec_name = m_vdecode.m_codec->long_name;
+        }
+        
+        if (m_adecode.m_stream){
+			m_mediainfo.m_frame_rate = av_q2d(av_guess_frame_rate(m_filefmt_ctx, m_vdecode.m_stream, nullptr));
+			m_mediainfo.m_samplerate = m_adecode.m_stream->codecpar->sample_rate;
+			m_mediainfo.m_audio_depth = m_adecode.m_stream->codecpar->bits_per_coded_sample;
+			m_mediainfo.m_samplefmt = ConverAudioFmt(m_adecode.m_decode_ctx->sample_fmt);
+			m_mediainfo.m_acodec_name = m_adecode.m_codec->long_name;
+        }
+      
         m_mediainfo.m_duration     = m_filefmt_ctx->duration/AV_TIME_BASE;
     
         return;
@@ -249,18 +252,18 @@ namespace mediaio {
     
         AVPacket read_pkt;
 	    int ret = av_read_frame(m_filefmt_ctx, &read_pkt);
-	    if (ret < 0) {
-           m_curvalid_decode->m_pkt_eof = true;
-           return ret;
-	    }
+	    //if (ret < 0) {
+     //      m_curvalid_decode->m_pkt_eof = true;
+     //      return ret;
+	    //}
 
-	    if (read_pkt.size > 0) {
+	    /*if (read_pkt.size > 0) {*/
             if (m_curvalid_decode->m_stream->index == read_pkt.stream_index) {
                 av_packet_unref(m_curvalid_decode->m_read_pkt);
                 av_packet_move_ref(m_curvalid_decode->m_read_pkt, &read_pkt);
                 m_vdecode.m_packet_ready = true;
             }
-	    }
+	    //}
 
         av_packet_unref(&read_pkt);
 	    return ret;
