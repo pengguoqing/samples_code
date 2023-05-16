@@ -13,7 +13,7 @@ namespace mediaio {
       const AVInputFormat *format = av_find_input_format(filepath.c_str());
 
       m_filefmt_ctx = avformat_alloc_context();
-      int ret = avformat_open_input(&m_filefmt_ctx, filepath.c_str(), format, nullptr);
+      int ret = avformat_open_input(&m_filefmt_ctx, filepath.c_str(), const_cast<AVInputFormat*>(format), nullptr);
       if (ret < 0) {
           return false;
       }
@@ -49,7 +49,7 @@ namespace mediaio {
         
         if (pos<m_available_pos || pos > m_decode_pos) {
                 SeekToFrameNum(pos);
-                 
+                m_cache_condi.notify_one();
         }
 
         {
@@ -63,7 +63,6 @@ namespace mediaio {
 
              std::map<uint64_t, std::shared_ptr<AVFrame>>::iterator dstframe;                    
              m_cache_condi.wait(cache_lock, [this, pos, &dstframe]{ dstframe = m_frame_cache.find(pos); return m_frame_cache.end() != dstframe ;});
-             m_expect_new_frame.store(false, std::memory_order_relaxed);
              crrespond_frame = dstframe->second.get();       
            
              for(int i{0}; i < kMaxAVPlanes; i++){
@@ -103,7 +102,7 @@ namespace mediaio {
 	    m_seek_pts = av_rescale_q(seek_to, time_base, m_curvalid_decode->m_stream->time_base);
         av_seek_frame(m_filefmt_ctx, m_curvalid_decode->m_stream->index, m_seek_pts, AVSEEK_FLAG_BACKWARD);
         m_decode_pos = m_available_pos = m_seek_pos;  
-        m_curvalid_decode->m_pkt_eof = m_curvalid_decode->m_frame_ready = m_curvalid_decode->m_packet_ready = false;     
+        m_curvalid_decode->m_code_eof = m_curvalid_decode->m_pkt_eof = m_curvalid_decode->m_frame_ready = m_curvalid_decode->m_packet_ready = false;
     }
 
     bool FFReader::InitDecoder(AVMediaType type) {
@@ -159,12 +158,16 @@ namespace mediaio {
                   m_read_type = SoureType::kSourceTypeUnknow;
                   return false;
         }
-
-        std::thread read_th(&FFReader::ThreadFunc, this);
-		m_read_th = std::move(read_th);
-        m_read_th.detach();
-
-        return true;
+        
+        if (m_curvalid_decode){
+			std::thread read_th(&FFReader::ThreadFunc, this);
+			m_read_th = std::move(read_th);
+			m_read_th.detach();
+            m_runing.store(true, std::memory_order_relaxed);
+            return true;
+        }
+     
+        return false;
     }
 
     bool FFReader::OpenCodec(ffdecode *decode) {
@@ -229,7 +232,7 @@ namespace mediaio {
 
     void FFReader::ThreadFunc() {
 
-        while (!m_exit) {
+        while (m_runing.load(std::memory_order_relaxed)) {
 
             {
                 if (m_seek.load(std::memory_order_relaxed)){               
@@ -251,34 +254,36 @@ namespace mediaio {
     int FFReader::ReadNextPacket() {
     
         AVPacket read_pkt;
-	    int ret = av_read_frame(m_filefmt_ctx, &read_pkt);
-	    //if (ret < 0) {
-     //      m_curvalid_decode->m_pkt_eof = true;
-     //      return ret;
-	    //}
+        av_packet_unref(m_curvalid_decode->m_read_pkt);
 
-	    /*if (read_pkt.size > 0) {*/
-            if (m_curvalid_decode->m_stream->index == read_pkt.stream_index) {
-                av_packet_unref(m_curvalid_decode->m_read_pkt);
-                av_packet_move_ref(m_curvalid_decode->m_read_pkt, &read_pkt);
-                m_vdecode.m_packet_ready = true;
-            }
-	    //}
+        do {
+			int ret = av_read_frame(m_filefmt_ctx, &read_pkt);
+			if (AVERROR_EOF == ret) {
+				m_curvalid_decode->m_pkt_eof = true;
+                m_curvalid_decode->m_packet_ready = true;
+                break;
+			}
 
-        av_packet_unref(&read_pkt);
-	    return ret;
+			if (m_curvalid_decode->m_stream->index == read_pkt.stream_index) {
+				av_packet_move_ref(m_curvalid_decode->m_read_pkt, &read_pkt);
+                m_curvalid_decode->m_packet_ready = true;
+			}
+
+            av_packet_unref(&read_pkt);
+        } while (!m_curvalid_decode->m_packet_ready);
+	           
+	    return 0;
     }
 
     bool FFReader::PrepareFrame() {
         
         do {
-            int rec = DecodeFrame();
-            if (0 == rec) {
+            int ret = DecodeFrame();
+            if (ret >= 0) {
                 break;
             }
-
-            if (AVERROR_EOF==ReadNextPacket() && AVERROR_EOF == rec) {
-                m_eof = true;
+            ReadNextPacket();
+            if (m_curvalid_decode->m_pkt_eof && m_curvalid_decode->m_code_eof) {
                 break;
             }
         
@@ -288,20 +293,21 @@ namespace mediaio {
     }
 
     int FFReader::DecodeFrame() {
-        int rec = avcodec_receive_frame(m_curvalid_decode->m_decode_ctx, m_curvalid_decode->m_decode_frame);
-        if(0 == rec) {
+        int ret = avcodec_receive_frame(m_curvalid_decode->m_decode_ctx, m_curvalid_decode->m_decode_frame);
+        if(ret >= 0) {
             m_curvalid_decode->m_frame_ready = true;      
-            return  rec;
+            return  ret;
+        }else if (AVERROR_EOF == ret) {
+            m_curvalid_decode->m_code_eof = true;
+            avcodec_flush_buffers(m_curvalid_decode->m_decode_ctx);
         }
 
         if (m_curvalid_decode->m_packet_ready) {
-            rec = avcodec_send_packet(m_curvalid_decode->m_decode_ctx, m_curvalid_decode->m_read_pkt);
+            avcodec_send_packet(m_curvalid_decode->m_decode_ctx, m_curvalid_decode->m_read_pkt);
             m_curvalid_decode->m_packet_ready = false;
-        }else if(m_curvalid_decode->m_pkt_eof) {
-            avcodec_flush_buffers(m_curvalid_decode->m_decode_ctx); 
         }
 
-        return rec;
+        return ret;
     }
 
     bool FFReader::CheckContinueDecode() {
@@ -335,7 +341,12 @@ namespace mediaio {
                 m_available_pos++;
                 av_frame_move_ref(frame.get(), codec_frame);
                 m_frame_cache.insert(std::pair<uint64_t, std::shared_ptr<AVFrame>>{m_decode_pos++, frame});
-            }      
+            }
+
+            
+            if (m_expect_new_frame.load(std::memory_order_relaxed)){
+                m_expect_new_frame.store(false, std::memory_order_relaxed);
+            }
         }
         m_cache_condi.notify_one();
         return;
@@ -366,6 +377,7 @@ namespace mediaio {
     }
 
     void FFReader::CloseFile() {
+        m_runing.store(false, std::memory_order_relaxed);
         ClearDecoderRes(&m_vdecode);
         ClearDecoderRes(&m_adecode);
         FlushFrameCache();

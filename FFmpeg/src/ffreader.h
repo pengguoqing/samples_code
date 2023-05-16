@@ -49,6 +49,7 @@ class FFReader: public IClipReader {
 	  bool			  m_frame_ready{false};
 	  bool			  m_packet_ready{false};
 	  bool			  m_pkt_eof{false};
+	  bool		      m_code_eof{false};
 	  bool            m_need{false};
    };
 
@@ -90,9 +91,7 @@ class FFReader: public IClipReader {
 	    ffdecode		 m_adecode;
 		ffdecode*  	   	 m_curvalid_decode{nullptr};
 	    ClipInfo		 m_mediainfo;
-	    SoureType   	 m_read_type{SoureType::kSourceTypeUnknow};
-	    bool			 m_exit{false};
-	    bool		     m_eof{false};
+	    SoureType   	 m_read_type{SoureType::kSourceTypeUnknow};	    
 	    bool			 m_sws{false};
 	    bool             m_swr{false};
 
@@ -107,10 +106,10 @@ class FFReader: public IClipReader {
 
 	    std::condition_variable_any m_status_condi;
 
-	    std::atomic<bool>           m_seek{false};
-	    std::atomic<bool>			m_reset{false};
-		std::atomic<bool>			m_expect_new_frame{false};
-
+	    std::atomic_bool            m_seek{false};
+	    std::atomic_bool			m_reset{false};
+		std::atomic_bool			m_expect_new_frame{false};
+		std::atomic_bool			m_runing{false};
 	    int64_t          			m_seek_pts{0};
 
     private:
