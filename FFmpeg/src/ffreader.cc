@@ -73,7 +73,7 @@ namespace mediaio {
                 }
         }
        
-        return false;
+        return true;
     }
 
     bool FFReader::SeekToFrameNum(uint64_t seek_pos) {

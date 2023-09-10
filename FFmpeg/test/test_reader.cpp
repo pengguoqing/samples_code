@@ -18,7 +18,7 @@ using FactoryDeleter = void(void*);
 
 int main(int argc, char** argv) {
 	
-	wstring libpath{L"G://samples_code//FFmpeg//install//ffrw.dll"};
+	string libpath{"G://samples_code//FFmpeg//install//ffrw.dll"};
 	HMODULE h_moudle = LoadLibrary(libpath.c_str());
 	if (nullptr != h_moudle){
 
