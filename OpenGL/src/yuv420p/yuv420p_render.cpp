@@ -101,7 +101,7 @@ void Yuv420pRender::RenderFrame()
 
 bool Yuv420pRender::InitShader()
 {
-	m_shader_parse.InitShader("vertex.shader", "I420.fs");
+	m_shader_parse.InitShader("I420.vs", "I420.fs");
 
 
 	float vertex_coord_data[] = {

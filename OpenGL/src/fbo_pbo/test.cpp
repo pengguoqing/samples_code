@@ -42,7 +42,7 @@ int main(void)
     glfwMakeContextCurrent(winhandle);
     glfwSetFramebufferSizeCallback(winhandle, callback_winsize);
 
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    gladLoadGL(glfwGetProcAddress);
 
     std::array<float, 20> vertex{
         -1.f,  1.f, 0.f,  0.f, 1.f,
