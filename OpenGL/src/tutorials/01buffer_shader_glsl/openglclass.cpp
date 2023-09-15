@@ -29,7 +29,7 @@ bool OpenGLClass::Initialize(GLFWwindow* display, int screenWidth, int screenHei
     m_display = display;
     glfwMakeContextCurrent(m_display);
 
-    gladLoadGL(glfwGetProcAddress);
+    gladLoadGL(/*glfwGetProcAddress*/);
 
     // Get a handle to the root window.
     //m_native_wnd = glfwGetWin32Window(m_display);

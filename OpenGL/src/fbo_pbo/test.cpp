@@ -42,7 +42,7 @@ int main(void)
     glfwMakeContextCurrent(winhandle);
     glfwSetFramebufferSizeCallback(winhandle, callback_winsize);
 
-    gladLoadGL(glfwGetProcAddress);
+    gladLoadGL(/*glfwGetProcAddress*/);
 
     std::array<float, 20> vertex{
         -1.f,  1.f, 0.f,  0.f, 1.f,
@@ -66,10 +66,10 @@ int main(void)
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indx), &indx.front(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), nullptr);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3*sizeof(float)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5*sizeof(float), nullptr);
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5*sizeof(float), (void*)(3*sizeof(float)));
     glBindVertexArray(0);
 
     //render vao
@@ -82,10 +82,10 @@ int main(void)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), &vertex.front(), GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, renderebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indx), &indx.front(), GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
-	glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
 	glBindVertexArray(0);
 
     //Init upload and render shader
@@ -144,9 +144,9 @@ int main(void)
         glBindTexture(GL_TEXTURE_2D, 0);
         yuy2fbo.UnBindFbo();
         glBindVertexArray(0);
-
+       
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, wndwidth, wndheight);
         rendershader.use();
         glBindVertexArray(rendervao);

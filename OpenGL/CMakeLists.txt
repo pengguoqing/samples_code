@@ -23,8 +23,8 @@ set(demos
 
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 add_library(GLAD STATIC)
-target_sources(GLAD PRIVATE ${CMAKE_SOURCE_DIR}/src/common/gl.c ${CMAKE_SOURCE_DIR}/include/glad/gl.h)
-target_sources(GLAD PRIVATE  ${CMAKE_SOURCE_DIR}/src/common/wgl.c ${CMAKE_SOURCE_DIR}/include/glad/wgl.h)
+target_sources(GLAD PRIVATE  ${CMAKE_SOURCE_DIR}/src/common/glad.c ${CMAKE_SOURCE_DIR}/include/glad/glad.h)
+target_sources(GLAD PRIVATE  ${CMAKE_SOURCE_DIR}/src/common/glad_wgl.c ${CMAKE_SOURCE_DIR}/include/glad/glad_wgl.h)
 
 
 set(LIBS ${LIBS} GLAD)  
@@ -48,6 +48,7 @@ function(CreateProjectFromSubDir demo)
     set(NAME "${demo}")
     add_executable(${NAME} ${SOURCE})
     target_link_libraries(${NAME} ${LIBS})
+    target_link_libraries(${NAME} opengl32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
     target_link_options(${NAME}   PUBLIC  /ignore:4099)
     target_include_directories(${NAME} PRIVATE "${CMAKE_SOURCE_DIR}/src/${demo}")

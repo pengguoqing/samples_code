@@ -2,9 +2,9 @@
 #define _CPLUS_WGL_CONTEXT_H_
 
 //#define WIN32_LEAN_AND_MEAN 
-//#include "glad/wgl.h"  
-#include "glad/gl.h"
-#include "glad/wglext.h"
+
+#include "glad/glad.h"
+#include "glad/glad_wgl.h"
 #include <unordered_map>
 #include <string>
 #include <functional>
@@ -24,7 +24,9 @@ public:
     bool InitGLRC();
     bool RegisterWnd(HWND hwnd);
     bool UnRegisterWnd(HWND hwnd);
-    
+    bool AttachWindow(HWND hwnd);
+    bool Present(HWND hwnd);
+
 private:
     bool RegisterWndClass(const std::string& classname);
 private:

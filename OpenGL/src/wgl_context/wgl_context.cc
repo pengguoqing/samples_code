@@ -3,6 +3,8 @@ typedef PROC (WINAPI*   PFNWGLGETPROCADDRESSPROC) (LPCSTR lpszProc);
 typedef BOOL (WINAPI*   PFNWGLMAKECURRENTPROC) (HDC hdc, HGLRC hglrc);
 typedef HGLRC (WINAPI*  PFNWGLCREATECONTEXTPROC) (HDC hdc);
 typedef BOOL  (WINAPI*  PFNWGLDELETECONTEXTPROC) (HGLRC hglrc);
+typedef void* (WINAPI*  PFNWGLGETPROCADDRESSPROC_PRIVATE)(const char*);
+
 typedef void (*WGLProc)(void);
 
 struct WglExtension
@@ -15,11 +17,14 @@ struct WglExtension
 		if (nullptr == m_gl_lib){
 			return false;
 		}
-	
+		
 		m_wgl_get_proc_address	= reinterpret_cast<PFNWGLGETPROCADDRESSPROC> (GetProcAddress(m_gl_lib, "wglGetProcAddress") );
+		m_wgl_extension_arb		= reinterpret_cast<PFNWGLGETEXTENSIONSSTRINGARBPROC>(m_wgl_get_proc_address("wglGetExtensionsStringARB") );
+		m_wgl_extension_ext		= reinterpret_cast<PFNWGLGETEXTENSIONSSTRINGEXTPROC>(m_wgl_get_proc_address("wglGetExtensionsStringEXT") );
 		m_wgl_make_ctx 			= reinterpret_cast<PFNWGLMAKECURRENTPROC>(GetProcAddress(m_gl_lib, "wglMakeCurrent") );
 		m_wgl_create_ctx		= reinterpret_cast<PFNWGLCREATECONTEXTPROC>(GetProcAddress(m_gl_lib, "wglCreateContext") );
 		m_wgl_delete_ctx		= reinterpret_cast<PFNWGLDELETECONTEXTPROC>(GetProcAddress(m_gl_lib, "wglDeleteContext"));
+		m_wgl_choosepix_arb		= reinterpret_cast<PFNWGLCHOOSEPIXELFORMATARBPROC>(m_wgl_get_proc_address("wglChoosePixelFormatARB") );
 		m_wgl_choosepix_arb		= reinterpret_cast<PFNWGLCHOOSEPIXELFORMATARBPROC>(GetProcAddress(m_gl_lib, "wglChoosePixelFormatARB"));
 		m_wgl_createctx_ext_arb	= reinterpret_cast<PFNWGLCREATECONTEXTATTRIBSARBPROC>(GetProcAddress(m_gl_lib, "wglCreateContextAttribsARB"));
 		m_wgl_swapinterval		= reinterpret_cast<PFNWGLSWAPINTERVALEXTPROC>(GetProcAddress(m_gl_lib, "wglSwapIntervalEXT"));
@@ -41,6 +46,9 @@ struct WglExtension
 	PFNWGLCHOOSEPIXELFORMATARBPROC	  	m_wgl_choosepix_arb{nullptr};
 	PFNWGLCREATECONTEXTATTRIBSARBPROC 	m_wgl_createctx_ext_arb{nullptr};
 	PFNWGLSWAPINTERVALEXTPROC			m_wgl_swapinterval{nullptr};
+	PFNWGLGETEXTENSIONSSTRINGARBPROC	m_wgl_extension_arb{ nullptr };
+	PFNWGLGETEXTENSIONSSTRINGEXTPROC	m_wgl_extension_ext{ nullptr };
+
 };
 
 static WglExtension g_wgl_extension;
@@ -76,36 +84,30 @@ static HGLRC CreateContext(HDC _hdc)
 		pfd.iLayerType = PFD_MAIN_PLANE;
 
 		int pixelFormat = ::ChoosePixelFormat(_hdc, &pfd);
-		::DescribePixelFormat(_hdc, pixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-		::SetPixelFormat(_hdc, pixelFormat, &pfd);
-		HGLRC context = g_wgl_extension.m_wgl_create_ctx(_hdc);
-		g_wgl_extension.m_wgl_make_ctx(_hdc, context);
+		int  ret =  ::DescribePixelFormat(_hdc, pixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+		ret = ::SetPixelFormat(_hdc, pixelFormat, &pfd);
+		ret	= GetLastError();
+		HGLRC context = wglCreateContext(_hdc);
+		wglMakeCurrent(_hdc, context);
 		return context;
 }
 
 bool GLContext::InitGLRC()
 {
-	//load opengl32.dll 
-	if(!g_wgl_extension.Init()){
-		return false;
-	}	
     // 先创建一个空窗口, 因为有了窗口设备及其GL句柄绑定后才能使用高阶 wglChoosePixelFormatARB 接口
     std::string dummyclass{"dummyclass"};
     RegisterWndClass(dummyclass);
-    HWND dummywnd = CreateWindowA(0, dummyclass.c_str(), WS_POPUP, 0, 0, 2, 2, nullptr, nullptr, GetModuleHandle(nullptr), 0);
+    HWND dummywnd = CreateWindowExA(0, dummyclass.c_str(), "dummy_window", WS_POPUP, 0, 0, 2, 2, nullptr, nullptr, GetModuleHandle(nullptr), 0);
     HDC dummyhdc = GetDC(dummywnd);
     HGLRC dummy_glctx = CreateContext(dummyhdc);
    
-    // 加载 GLAD_WGL
-    // if (!gladLoadWGL(dummyhdc, WglGetProcAddress)) {
-    //     return false;
-    // }
-	if (!gladLoadGL(WglGetProcAddress)){
-		 return false;
+    // 加载 GLAD_WGL, GLAD
+	if ( !(gladLoadWGL(dummyhdc) && gladLoadGL() ) ){
+		return false;
 	}
-	
-	g_wgl_extension.m_wgl_make_ctx(nullptr, nullptr);
-	g_wgl_extension.m_wgl_delete_ctx(dummy_glctx);
+
+	wglMakeCurrent(nullptr, nullptr);
+	wglDeleteContext(dummy_glctx);
 	::DestroyWindow(dummywnd);
 	
 	if (!InitPlatDevice()){
@@ -114,6 +116,46 @@ bool GLContext::InitGLRC()
 	
 	
     return true;
+}
+
+bool GLContext::RegisterWnd(HWND hwnd)
+{
+	HDC hdc	=	::GetDC(hwnd);
+	int pixfmt = ChoosePixelFormat(hdc);
+	PIXELFORMATDESCRIPTOR pfd;
+	int ret = ::DescribePixelFormat(hdc, pixfmt, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+		ret= ::SetPixelFormat(hdc, pixfmt, &pfd);
+	if(!ret){
+		unsigned long error = GetLastError();
+		return false;
+	}
+
+	m_windevice_table.insert({hwnd, hdc});
+
+    return true;
+}
+
+bool GLContext::UnRegisterWnd(HWND hwnd)
+{
+	m_windevice_table.erase(hwnd);
+    return true;
+}
+
+bool GLContext::AttachWindow(HWND hwnd)
+{
+	wglMakeCurrent(nullptr, nullptr);
+	if(auto search = m_windevice_table.find(hwnd); search != m_windevice_table.end() ){
+		return wglMakeCurrent(search->second, m_plat_glctx);	
+	}
+	
+    return false;
+}
+
+bool GLContext::Present(HWND hwnd)
+{
+	if (auto search = m_windevice_table.find(hwnd); search != m_windevice_table.end()) {
+		return ::SwapBuffers(search->second);
+	}
 }
 
 bool GLContext::RegisterWndClass(const std::string &classname)
@@ -138,12 +180,12 @@ bool GLContext::InitPlatDevice()
 {
 	std::string plat_wnd_class{"plat_wnd_class"};
     RegisterWndClass(plat_wnd_class);
-	m_plat_wnd 	=	::CreateWindowA(0, plat_wnd_class.c_str(), WS_POPUP, 0, 0, 2, 2, nullptr, nullptr, GetModuleHandle(nullptr), 0);
+	m_plat_wnd 	=	::CreateWindowExA(0, plat_wnd_class.c_str(), "plat_wnd_class", WS_POPUP, 0, 0, 2, 2, nullptr, nullptr, GetModuleHandle(nullptr), 0);
     m_plat_hdc 	=  	::GetDC(m_plat_wnd);
 
 	m_pixel_format = ChoosePixelFormat(m_plat_hdc);
-	::DescribePixelFormat(m_plat_hdc, m_pixel_format, sizeof(PIXELFORMATDESCRIPTOR), &m_pfd);
-	bool ret= ::SetPixelFormat(m_plat_hdc, m_pixel_format, &m_pfd);
+	int ret = ::DescribePixelFormat(m_plat_hdc, m_pixel_format, sizeof(PIXELFORMATDESCRIPTOR), &m_pfd);
+	ret= ::SetPixelFormat(m_plat_hdc, m_pixel_format, &m_pfd);
 	if(!ret){
 		unsigned long error = GetLastError();
 		return false;
@@ -164,12 +206,14 @@ bool GLContext::InitPlatDevice()
 		0,
 		0};
 
-	m_plat_glctx = g_wgl_extension.m_wgl_createctx_ext_arb(m_plat_hdc, 0, ctx_attribs);
+	//m_plat_glctx = g_wgl_extension.m_wgl_createctx_ext_arb(m_plat_hdc, 0, ctx_attribs);
+	m_plat_glctx = wglCreateContextAttribsARB(m_plat_hdc, 0, ctx_attribs);
 	if(nullptr == m_plat_glctx){
 		return false;
 	}
 
-	if(!g_wgl_extension.m_wgl_make_ctx(m_plat_hdc, m_plat_glctx) ){
+	//if(!g_wgl_extension.m_wgl_make_ctx(m_plat_hdc, m_plat_glctx) ){
+	if (!wglMakeCurrent(m_plat_hdc, m_plat_glctx)) {
 		return false;
 	}
 
@@ -203,12 +247,8 @@ int GLContext::ChoosePixelFormat(const HDC hdc) const
 	int pixel_format{0};
 	do
 	{
-		if (nullptr == g_wgl_extension.m_wgl_choosepix_arb) {
-			break;
-		}
-		
-		result = g_wgl_extension.m_wgl_choosepix_arb(hdc, attrs, nullptr, 1, &pixel_format, &numFormats);
-		
+		//result = g_wgl_extension.m_wgl_choosepix_arb(hdc, attrs, nullptr, 1, &pixel_format, &numFormats);
+		result = wglChoosePixelFormatARB(hdc, attrs, nullptr, 1, &pixel_format, &numFormats);
 		if (0 == result ||  0 == numFormats) {
 			attrs[3] >>= 1;
 			attrs[1] = attrs[3] == 0 ? 0 : 1;

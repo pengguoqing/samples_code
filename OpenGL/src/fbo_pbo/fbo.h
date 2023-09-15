@@ -1,7 +1,7 @@
 #ifndef _CPLUSPLUS_FBO_H_
 #define _CPLUSPLUS_FBO_H_
 
-#include "glad/gl.h"
+#include "glad/glad.h"
 #include <memory>
 
 class CXFbo

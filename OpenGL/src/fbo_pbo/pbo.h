@@ -1,7 +1,7 @@
 #ifndef _CPLUSPLUS_PBO_H_
 #define _CPLUSPLUS_PBO_H_
 
-#include "glad/gl.h"
+#include "glad/glad.h"
 #include <memory>
 
 enum class PBOTYPE:uint8_t

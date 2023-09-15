@@ -9,9 +9,9 @@
 // INCLUDES //
 //////////////
 //Glfw glad includes
-#include "glad/gl.h"
+#include "glad/glad.h"
 #define WIN32_LEAN_AND_MEAN
-#include "glad/wgl.h"
+#include "glad/glad_wgl.h"
 #include "glfw/glfw3.h"
 #include "glm/glm.hpp"
 #include <glm/gtc/matrix_transform.hpp>
