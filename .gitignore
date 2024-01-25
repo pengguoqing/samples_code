@@ -1,4 +1,5 @@
 OpenGL/build/*
+OpenGL/bin/*
 OpenGL/.vscode/*
 FFmpeg/build/*
 FFmpeg/.vscode/*
